@@ -5,6 +5,10 @@ use mindr;
 // TODO: write integration case for entire process of creating config etc., but testing each field
 // is probably redundant as we will have a resulting struct
 fn main() {
-    let config = mindr::get_configuration();
+    let config = mindr::Config {
+        ..Default::default()
+    };
+
+    config.init().unwrap();
     println!("{:?}", config);
 }
