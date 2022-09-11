@@ -1,14 +1,10 @@
 use mindr;
 
-// TODO: think through the logic to add initial config after creating new file
-// TODO: probably I want to parse config inside fully and get custom struct config in return
-// TODO: write integration case for entire process of creating config etc., but testing each field
-// is probably redundant as we will have a resulting struct
+// TODO: think if it's good to add other crate (not mindr) kind of like namespace for config
 fn main() {
-    let config = mindr::Config {
-        ..Default::default()
-    };
-
-    config.init().unwrap();
-    println!("{:?}", config);
+    let config = mindr::Config::init();
+    println!("config: {:#?}", config.unwrap());
 }
+
+// --- Future ---
+// TODO: add option to pass path as args to program and then to `init()`
