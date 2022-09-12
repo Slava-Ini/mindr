@@ -1,8 +1,6 @@
-// TODO: read whether we should use ini::Ini both for types and methods
 use configparser::ini::Ini;
 
 use std::collections::HashMap;
-use std::env;
 use std::fs::{self, File};
 use std::path::Path;
 use std::slice::Iter;
@@ -10,7 +8,6 @@ use std::str::FromStr;
 
 // TODO: improve error handling
 // TODO: think about where this function should go
-// maybe we can impl it on the external crate (seems to be a bad idea)
 fn load(config: &Ini) -> Config {
     // TODO: use section enum here as well
     let auto_hide_menu = config
@@ -59,15 +56,6 @@ fn load(config: &Ini) -> Config {
     }
 }
 
-// TODO: probably needs refactor to put it somewhere else
-fn get_config_path() -> String {
-    let user_name = env::var("USERNAME")
-        .expect("Couldn't get system user")
-        .to_owned();
-
-    format!("/home/{user_name}/.config/mindr/mindr.conf")
-}
-
 fn init_config(path: &Path) -> Ini {
     let mut config = Ini::new();
 
@@ -77,7 +65,7 @@ fn init_config(path: &Path) -> Ini {
     config
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Selection {
     Brackets,
     Tilde,
@@ -156,7 +144,7 @@ impl FromStr for Action {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Config {
     pub display_todays: bool,
     pub remind_unfinished: bool,
@@ -168,14 +156,12 @@ pub struct Config {
 
 impl Config {
     // TODO: make better result type
-    pub fn init() -> Result<Config, String> {
-        let config_path = get_config_path();
-        let path = Path::new(&config_path);
-
+    pub fn init(path: &Path) -> Result<Config, String> {
         if !path.exists() {
             let prefix = path.parent().expect("Couldn't get the path prefix");
 
             fs::create_dir_all(prefix).expect("Couldn't create a directory");
+
             File::create(path).expect("Couldn't create configuration file");
 
             let config = Config {
@@ -189,11 +175,13 @@ impl Config {
 
         let ini_config = init_config(path);
         let config = load(&ini_config);
+
         Ok(config)
     }
 
     // TODO: probably should be outside function
-    fn save(&self, path: &Path) {
+    // TODO: probably path should be it's part or used only on init
+    pub fn save(&self, path: &Path) {
         let mut ini_config = Ini::new();
 
         // TODO: refactor
