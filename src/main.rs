@@ -1,5 +1,4 @@
-use mindr;
-use std::fs::File;
+use mindr::Config;
 
 use std::env;
 use std::path::PathBuf;
@@ -18,7 +17,6 @@ fn get_config_path() -> PathBuf {
 // TODO: think if it's good to add other crate (not mindr) kind of like namespace for config
 fn main() {
     let path = get_config_path();
-    let config = mindr::Config::init(&path);
+    // TODO: to be used
+    let _config = Config::init(&path);
 }
-
-// --- Future ---

@@ -1,6 +1,5 @@
 use configparser::ini::Ini;
 
-use std::collections::HashMap;
 use std::fs::{self, File};
 use std::path::Path;
 use std::slice::Iter;
@@ -38,12 +37,14 @@ fn load(config: &Ini) -> Config {
     )
     .unwrap();
 
-    let mut key_mapping: HashMap<Action, String> = HashMap::new();
+    let mut key_mapping: Vec<(Action, String)> = vec![];
 
-    for mapping in Action::iterate() {
-        // TODO: probably make section without spaces
-        let value = config.get("key mapping", mapping.as_str()).unwrap();
-        key_mapping.insert(Action::from_str(mapping.as_str()).unwrap(), value);
+    for (index, action) in Action::iterate().enumerate() {
+        // TODO: fix all unwraps
+        let value = config.get("key_mapping", action.as_str()).unwrap();
+        let mapping = (action.clone(), value);
+
+        key_mapping.insert(index, mapping);
     }
 
     Config {
@@ -96,7 +97,7 @@ impl FromStr for Selection {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub enum Action {
     Up,
     Down,
@@ -151,7 +152,7 @@ pub struct Config {
     pub auto_hide_menu: bool,
     pub hide_menu_timeout: u16,
     pub selection_style: Selection,
-    pub key_mapping: HashMap<Action, String>,
+    pub key_mapping: Vec<(Action, String)>,
 }
 
 impl Config {
@@ -214,7 +215,7 @@ impl Config {
         );
 
         for (action, key) in &self.key_mapping {
-            ini_config.setstr("key mapping", action.as_str(), Some(key.as_str()));
+            ini_config.setstr("key_mapping", action.as_str(), Some(key));
         }
 
         ini_config.write(path).expect("Couldn't save cofiguration");
@@ -223,25 +224,13 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        // TODO: probably try with vector or array of tuples
-        let keys = vec![
-            Action::Up,
-            Action::Down,
-            Action::PrevMenu,
-            Action::NextMenu,
-            Action::Mark,
+        let key_mapping = vec![
+            (Action::Up, String::from("j")),
+            (Action::Down, String::from("k")),
+            (Action::PrevMenu, String::from("h")),
+            (Action::NextMenu, String::from("l")),
+            (Action::Mark, String::from("Enter")),
         ];
-
-        let actions = vec![
-            String::from("j"),
-            String::from("k"),
-            String::from("h"),
-            String::from("l"),
-            String::from("Enter"),
-        ];
-
-        let key_mapping: HashMap<Action, String> =
-            keys.into_iter().zip(actions.into_iter()).collect();
 
         Config {
             display_todays: true,
