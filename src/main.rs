@@ -20,3 +20,6 @@ fn main() {
     // TODO: to be used
     let _config = Config::init(&path);
 }
+
+// -- For Future: --
+// TODO: Write log messages upon each action 

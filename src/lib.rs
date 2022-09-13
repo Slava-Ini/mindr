@@ -2,68 +2,93 @@ use configparser::ini::Ini;
 
 use std::fs::{self, File};
 use std::path::Path;
+use std::process;
 use std::slice::Iter;
 use std::str::FromStr;
 
-// TODO: improve error handling
-// TODO: think about where this function should go
-fn load(config: &Ini) -> Config {
-    // TODO: use section enum here as well
-    let auto_hide_menu = config
-        .getbool("general", "auto_hide_menu")
-        .expect("The value is empty")
-        .unwrap();
-    let display_todays = config
-        .getbool("general", "display_todays")
-        .expect("The value is empty")
-        .unwrap();
-    let remind_unfinished = config
-        .getbool("general", "remind_unfinished")
-        .expect("The value is empty")
-        .unwrap();
-    let hide_menu_timeout = config
-        .getuint("general", "hide_menu_timeout")
-        .expect("The value is empty")
-        // TODO: better message in case user changed to invalid values probably panic
-        // as well as for the other non valid types in here
-        .unwrap() as u16;
+fn read_ini(path: &Path) -> Result<Config, String> {
+    let mut ini_config = Ini::new();
 
-    let selection_style = Selection::from_str(
-        config
-            .get("style", "selection_style")
-            // TODO: read about as str
-            .expect("The value is empty")
-            .as_str(),
-    )
-    .unwrap();
+    ini_config
+        .load(path)
+        .expect("Couldn't parse configuration file");
+
+    let err_msg = "Couldn't get value from configuration. Please check mindr.conf";
+
+    let auto_hide_menu = ini_config
+        .getbool("general", "auto_hide_menu")?
+        .expect(&err_msg);
+    let display_todays = ini_config
+        .getbool("general", "display_todays")?
+        .expect(&err_msg);
+    let remind_unfinished = ini_config
+        .getbool("general", "remind_unfinished")?
+        .expect(&err_msg);
+    let hide_menu_timeout = ini_config
+        .getuint("general", "hide_menu_timeout")?
+        .expect(&err_msg) as u16;
+    let selection_style = ini_config.get("style", "selection_style").expect(&err_msg);
+    // TODO: change following after `from_str` error handling was improved
+    let selection_style = Selection::from_str(&selection_style).unwrap();
 
     let mut key_mapping: Vec<(Action, String)> = vec![];
 
     for (index, action) in Action::iterate().enumerate() {
-        // TODO: fix all unwraps
-        let value = config.get("key_mapping", action.as_str()).unwrap();
+        let value = ini_config
+            .get("key_mapping", action.as_str())
+            .expect(&err_msg);
         let mapping = (action.clone(), value);
 
         key_mapping.insert(index, mapping);
     }
 
-    Config {
+    Ok(Config {
         auto_hide_menu,
         display_todays,
         remind_unfinished,
         hide_menu_timeout,
         selection_style,
         key_mapping,
-    }
+    })
 }
 
-fn init_config(path: &Path) -> Ini {
-    let mut config = Ini::new();
+fn write_ini(config: &Config, path: &Path) {
+    let mut ini_config = Ini::new();
 
-    config
-        .load(path)
-        .expect("Couldn't parse configuration file");
-    config
+    ini_config.set(
+        "general",
+        "display_todays",
+        Some(config.display_todays.to_string()),
+    );
+    ini_config.set(
+        "general",
+        "remind_unfinished",
+        Some(config.remind_unfinished.to_string()),
+    );
+    ini_config.set(
+        "general",
+        "auto_hide_menu",
+        Some(config.auto_hide_menu.to_string()),
+    );
+    ini_config.set(
+        "general",
+        "hide_menu_timeout",
+        Some(config.hide_menu_timeout.to_string()),
+    );
+    ini_config.setstr(
+        "style",
+        "selection_style",
+        Some(config.selection_style.as_str()),
+    );
+
+    for (action, key) in &config.key_mapping {
+        ini_config.setstr("key_mapping", action.as_str(), Some(key));
+    }
+
+    match ini_config.write(path) {
+        Err(error) => eprint!("Couldn't save configuration: {error}"),
+        _ => (),
+    };
 }
 
 #[derive(Debug, PartialEq)]
@@ -97,6 +122,7 @@ impl FromStr for Selection {
     }
 }
 
+// TODO: remove unused derivatives
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub enum Action {
     Up,
@@ -129,24 +155,10 @@ impl Action {
     }
 }
 
-impl FromStr for Action {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "up" => Ok(Action::Up),
-            "down" => Ok(Action::Down),
-            "prev_menu" => Ok(Action::PrevMenu),
-            "next_menu" => Ok(Action::NextMenu),
-            "mark" => Ok(Action::Mark),
-            // TODO: better error in case user changes value manually
-            _ => Err(()),
-        }
-    }
-}
-
 #[derive(Debug, PartialEq)]
 pub struct Config {
+    // TODO: consider this one to prevent passing it to ini_write
+    // pub path: &'static Path,
     pub display_todays: bool,
     pub remind_unfinished: bool,
     pub auto_hide_menu: bool,
@@ -174,51 +186,17 @@ impl Config {
             return Ok(config);
         }
 
-        let ini_config = init_config(path);
-        let config = load(&ini_config);
+        let config = read_ini(&path).unwrap_or_else(|err| {
+            eprintln!("Couldn't read configuration file: {err}");
+            process::exit(1);
+        });
 
         Ok(config)
     }
 
-    // TODO: probably should be outside function
-    // TODO: probably path should be it's part or used only on init
+    // TODO: make Result return for `save`
     pub fn save(&self, path: &Path) {
-        let mut ini_config = Ini::new();
-
-        // TODO: refactor
-        // 1. Sections as enum or struct
-        // 2. iterate over enum
-        ini_config.set(
-            "general",
-            "display_todays",
-            Some(self.display_todays.to_string()),
-        );
-        ini_config.set(
-            "general",
-            "remind_unfinished",
-            Some(self.remind_unfinished.to_string()),
-        );
-        ini_config.set(
-            "general",
-            "auto_hide_menu",
-            Some(self.auto_hide_menu.to_string()),
-        );
-        ini_config.set(
-            "general",
-            "hide_menu_timeout",
-            Some(self.hide_menu_timeout.to_string()),
-        );
-        ini_config.setstr(
-            "style",
-            "selection_style",
-            Some(self.selection_style.as_str()),
-        );
-
-        for (action, key) in &self.key_mapping {
-            ini_config.setstr("key_mapping", action.as_str(), Some(key));
-        }
-
-        ini_config.write(path).expect("Couldn't save cofiguration");
+        write_ini(&self, path);
     }
 }
 
