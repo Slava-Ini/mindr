@@ -13,31 +13,74 @@ fn read_ini(path: &Path) -> Result<Config, String> {
         .load(path)
         .expect("Couldn't parse configuration file");
 
-    let err_msg = "Couldn't get value from configuration. Please check mindr.conf";
-
+    // TODO: F: Probably can still be done in a loop somehow (many repeats)
     let auto_hide_menu = ini_config
         .getbool("general", "auto_hide_menu")?
-        .expect(&err_msg);
+        .unwrap_or_else(|| {
+           eprintln!("Couldn't get 'auto_hide_menu' value: Not a boolean. 'auto_hide_menu' will be set to default 'false'");
+           false
+        });
     let display_todays = ini_config
         .getbool("general", "display_todays")?
-        .expect(&err_msg);
+        .unwrap_or_else(|| {
+           eprintln!("Couldn't get 'display_todays' value: Not a boolean. 'display_todays' will be set to default 'true'");
+           true
+        });
     let remind_unfinished = ini_config
         .getbool("general", "remind_unfinished")?
-        .expect(&err_msg);
+        .unwrap_or_else(|| {
+           eprintln!("Couldn't get 'remind_unfinished' value: Not a boolean. 'remind_unfinished' will be set to default 'false'");
+           true
+        });
     let hide_menu_timeout = ini_config
         .getuint("general", "hide_menu_timeout")?
-        .expect(&err_msg) as u16;
-    let selection_style = ini_config.get("style", "selection_style").expect(&err_msg);
-    // TODO: change following after `from_str` error handling was improved
-    let selection_style = Selection::from_str(&selection_style).unwrap();
+        .unwrap_or_else(|| {
+           eprintln!("Couldn't get 'remind_unfinished' value: Not a valid number. 'remind_unfinished' will be set to default '500'");
+           500
+        });
+
+    let hide_menu_timeout = match hide_menu_timeout {
+        n if n > 60000 => {
+            eprintln!("The value of 'hide_menu_timeout' can not be greater than 60000, 'hide_menu_timeout' will be set to default '500'");
+            500 as u16
+        }
+        _ => hide_menu_timeout as u16,
+    };
+
+    let selection_style = ini_config
+        .get("style", "selection_style")
+        .unwrap_or_else(|| {
+            eprintln!("Couldn't get 'selection_style' value: Not a string. 'selection_style' will be set to default 'Brackets'");
+            String::from("brackets")
+        });
+    let selection_style = Selection::from_str(&selection_style).unwrap_or_else(|err| {
+        eprintln!("Couldn't get 'selection_style' style: {err}.");
+        Selection::Brackets
+    });
 
     let mut key_mapping: Vec<(Action, String)> = vec![];
 
     for (index, action) in Action::iterate().enumerate() {
-        let value = ini_config
+        let key = ini_config
             .get("key_mapping", action.as_str())
-            .expect(&err_msg);
-        let mapping = (action.clone(), value);
+            .unwrap_or_else(|| {
+                let default_config = Config::default();
+
+                let (default_key, _): &(Action, String) = default_config
+                    .key_mapping
+                    .iter()
+                    .find(|(default_action, _)| default_action.as_str() == action.as_str())
+                    .unwrap();
+
+                eprintln!(
+                    "Couldn't get {:?} action key. '{:?}' will be set to default {:?}",
+                    action, action, &default_key
+                );
+
+                String::from(default_key.as_str())
+            });
+
+        let mapping = (action.clone(), key);
 
         key_mapping.insert(index, mapping);
     }
@@ -109,21 +152,21 @@ impl Selection {
 }
 
 impl FromStr for Selection {
-    type Err = ();
+    type Err = &'static str;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "brackets" => Ok(Selection::Brackets),
             "tilde" => Ok(Selection::Tilde),
             "outline" => Ok(Selection::Outline),
-            // TODO: better error in case user changes value manually
-            _ => Err(()),
+            _ => {
+                return Err("No such selection style available, try using 'brackets/tilde/outline'")
+            }
         }
     }
 }
 
-// TODO: remove unused derivatives
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Action {
     Up,
     Down,
@@ -169,7 +212,7 @@ pub struct Config {
 
 impl Config {
     // TODO: make better result type
-    pub fn init(path: &Path) -> Result<Config, String> {
+    pub fn init(path: &Path) -> Config {
         if !path.exists() {
             let prefix = path.parent().expect("Couldn't get the path prefix");
 
@@ -177,13 +220,11 @@ impl Config {
 
             File::create(path).expect("Couldn't create configuration file");
 
-            let config = Config {
-                ..Default::default()
-            };
+            let config = Config::default();
 
             config.save(path);
 
-            return Ok(config);
+            return config;
         }
 
         let config = read_ini(&path).unwrap_or_else(|err| {
@@ -191,7 +232,7 @@ impl Config {
             process::exit(1);
         });
 
-        Ok(config)
+        config
     }
 
     // TODO: make Result return for `save`

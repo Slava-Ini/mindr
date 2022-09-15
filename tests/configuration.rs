@@ -33,7 +33,7 @@ fn it_creates_new_config() {
     let expected_config = mindr::Config {
         ..Default::default()
     };
-    let config = mindr::Config::init(&path).unwrap();
+    let config = mindr::Config::init(&path);
 
     assert_eq!(expected_config, config);
 }
@@ -47,19 +47,18 @@ fn it_reads_existing_config() {
         fs::remove_file(&path).unwrap();
     }
 
-    let mut config = mindr::Config::init(&path).unwrap();
+    let mut config = mindr::Config::init(&path);
 
     config.display_todays = false;
     config.remind_unfinished = false;
     config.auto_hide_menu = true;
     config.hide_menu_timeout = 1000;
     config.selection_style = Selection::Tilde;
-    // TODO: improve test after new key system is ready
 
     // TODO: improve after path is better
     config.save(&path);
 
-    let saved_config = mindr::Config::init(&path).unwrap();
+    let saved_config = mindr::Config::init(&path);
 
     let expected_config = Config {
         display_todays: false,
@@ -72,3 +71,6 @@ fn it_reads_existing_config() {
 
     assert_eq!(expected_config, saved_config);
 }
+
+// TODO: later cover a test case where user changes some values to be wrong in config and tries to
+// run the program, see `read_ini`
