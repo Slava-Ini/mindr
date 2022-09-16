@@ -31,6 +31,7 @@ fn it_creates_new_config() {
     }
 
     let expected_config = mindr::Config {
+        path: &path,
         ..Default::default()
     };
     let config = mindr::Config::init(&path);
@@ -55,12 +56,12 @@ fn it_reads_existing_config() {
     config.hide_menu_timeout = 1000;
     config.selection_style = Selection::Tilde;
 
-    // TODO: improve after path is better
-    config.save(&path);
+    config.save();
 
     let saved_config = mindr::Config::init(&path);
 
     let expected_config = Config {
+        path: &path,
         display_todays: false,
         remind_unfinished: false,
         auto_hide_menu: true,

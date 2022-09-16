@@ -7,9 +7,15 @@ fn get_config_path() -> PathBuf {
     // TODO: improve error handling
     let user_name = env::var("USERNAME").expect("Couldn't get system user");
 
-    let path: PathBuf = ["/home", user_name.as_str(), ".config", "mindr", "mindr.conf"]
-        .iter()
-        .collect();
+    let path: PathBuf = [
+        "/home",
+        user_name.as_str(),
+        ".config",
+        "mindr",
+        "mindr.conf",
+    ]
+    .iter()
+    .collect();
 
     path
 }
@@ -18,8 +24,9 @@ fn get_config_path() -> PathBuf {
 fn main() {
     let path = get_config_path();
     // TODO: to be used
-    let _config = Config::init(&path);
+    let config = Config::init(&path);
+    config.save();
 }
 
 // -- For Future: --
-// TODO: Write log messages upon each action 
+// TODO: Write log messages upon each action

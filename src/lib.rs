@@ -1,44 +1,56 @@
-use configparser::ini::Ini;
+use configparser::ini;
 
 use std::fs::{self, File};
 use std::path::Path;
-use std::process;
 use std::slice::Iter;
 use std::str::FromStr;
+use std::process;
+
+// For the future:
+// TODO: Go through methods and decide which should be public
+// TODO: Make stronger typing for key values rather than just String
+// For now any key value will do, even empty, maybe I can try to store key codes
+// Or at leas make a check that key value is non-empty
+// TODO: Sometimes upon config save changes it's sections placing, not vital but it would be nice
+// to have it always be same + add newline between sections (check lib's version for pretty write)
+// TODO: `read_ini` and `write_ini` could be improved with iterators but it takes some research
+// on how to implement access struct fields using string and get it's fields as string without
+// writing to much code
 
 fn read_ini(path: &Path) -> Result<Config, String> {
-    let mut ini_config = Ini::new();
+    let mut ini_config = ini::Ini::new();
 
     ini_config
         .load(path)
         .expect("Couldn't parse configuration file");
 
-    // TODO: F: Probably can still be done in a loop somehow (many repeats)
     let auto_hide_menu = ini_config
         .getbool("general", "auto_hide_menu")?
         .unwrap_or_else(|| {
            eprintln!("Couldn't get 'auto_hide_menu' value: Not a boolean. 'auto_hide_menu' will be set to default 'false'");
            false
         });
+
     let display_todays = ini_config
         .getbool("general", "display_todays")?
         .unwrap_or_else(|| {
            eprintln!("Couldn't get 'display_todays' value: Not a boolean. 'display_todays' will be set to default 'true'");
            true
         });
+
     let remind_unfinished = ini_config
         .getbool("general", "remind_unfinished")?
         .unwrap_or_else(|| {
            eprintln!("Couldn't get 'remind_unfinished' value: Not a boolean. 'remind_unfinished' will be set to default 'false'");
            true
         });
+
     let hide_menu_timeout = ini_config
         .getuint("general", "hide_menu_timeout")?
         .unwrap_or_else(|| {
            eprintln!("Couldn't get 'remind_unfinished' value: Not a valid number. 'remind_unfinished' will be set to default '500'");
            500
         });
-
     let hide_menu_timeout = match hide_menu_timeout {
         n if n > 60000 => {
             eprintln!("The value of 'hide_menu_timeout' can not be greater than 60000, 'hide_menu_timeout' will be set to default '500'");
@@ -66,14 +78,14 @@ fn read_ini(path: &Path) -> Result<Config, String> {
             .unwrap_or_else(|| {
                 let default_config = Config::default();
 
-                let (default_key, _): &(Action, String) = default_config
+                let (_, default_key): &(Action, String) = default_config
                     .key_mapping
                     .iter()
                     .find(|(default_action, _)| default_action.as_str() == action.as_str())
                     .unwrap();
 
                 eprintln!(
-                    "Couldn't get {:?} action key. '{:?}' will be set to default {:?}",
+                    "Couldn't get '{:?}' action key. '{:?}' will be set to default {:?}",
                     action, action, &default_key
                 );
 
@@ -92,11 +104,12 @@ fn read_ini(path: &Path) -> Result<Config, String> {
         hide_menu_timeout,
         selection_style,
         key_mapping,
+        path: &path,
     })
 }
 
 fn write_ini(config: &Config, path: &Path) {
-    let mut ini_config = Ini::new();
+    let mut ini_config = ini::Ini::new();
 
     ini_config.set(
         "general",
@@ -129,7 +142,9 @@ fn write_ini(config: &Config, path: &Path) {
     }
 
     match ini_config.write(path) {
-        Err(error) => eprint!("Couldn't save configuration: {error}"),
+        Err(error) => {
+            panic!("Couldn't save configuration: {error}");
+        }
         _ => (),
     };
 }
@@ -199,9 +214,8 @@ impl Action {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Config {
-    // TODO: consider this one to prevent passing it to ini_write
-    // pub path: &'static Path,
+pub struct Config<'a> {
+    pub path: &'a Path,
     pub display_todays: bool,
     pub remind_unfinished: bool,
     pub auto_hide_menu: bool,
@@ -210,19 +224,18 @@ pub struct Config {
     pub key_mapping: Vec<(Action, String)>,
 }
 
-impl Config {
-    // TODO: make better result type
+impl<'a> Config<'a> {
     pub fn init(path: &Path) -> Config {
         if !path.exists() {
             let prefix = path.parent().expect("Couldn't get the path prefix");
 
             fs::create_dir_all(prefix).expect("Couldn't create a directory");
-
             File::create(path).expect("Couldn't create configuration file");
 
-            let config = Config::default();
+            let mut config = Config::default();
 
-            config.save(path);
+            config.set_path(path);
+            config.save();
 
             return config;
         }
@@ -235,13 +248,16 @@ impl Config {
         config
     }
 
-    // TODO: make Result return for `save`
-    pub fn save(&self, path: &Path) {
-        write_ini(&self, path);
+    fn set_path(&mut self, path: &'a Path) {
+        self.path = path;
+    }
+
+    pub fn save(&self) {
+        write_ini(&self, self.path);
     }
 }
 
-impl Default for Config {
+impl<'a> Default for Config<'a> {
     fn default() -> Self {
         let key_mapping = vec![
             (Action::Up, String::from("j")),
@@ -258,6 +274,7 @@ impl Default for Config {
             hide_menu_timeout: 500,
             selection_style: Selection::Brackets,
             key_mapping,
+            path: Path::new(""),
         }
     }
 }
