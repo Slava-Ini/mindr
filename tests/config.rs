@@ -1,4 +1,4 @@
-use mindr::{Config, Selection};
+use mindr::config::{Config, Selection};
 use serial_test::serial;
 
 use std::path::PathBuf;
@@ -30,11 +30,11 @@ fn it_creates_new_config() {
         fs::remove_file(&path).unwrap();
     }
 
-    let expected_config = mindr::Config {
+    let expected_config = Config {
         path: &path,
         ..Default::default()
     };
-    let config = mindr::Config::init(&path);
+    let config = Config::init(&path);
 
     assert_eq!(expected_config, config);
 }
@@ -48,7 +48,7 @@ fn it_reads_existing_config() {
         fs::remove_file(&path).unwrap();
     }
 
-    let mut config = mindr::Config::init(&path);
+    let mut config = Config::init(&path);
 
     config.display_todays = false;
     config.remind_unfinished = false;
@@ -58,7 +58,7 @@ fn it_reads_existing_config() {
 
     config.save();
 
-    let saved_config = mindr::Config::init(&path);
+    let saved_config = Config::init(&path);
 
     let expected_config = Config {
         path: &path,

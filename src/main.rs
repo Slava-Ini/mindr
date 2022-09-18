@@ -1,7 +1,8 @@
-use mindr::Config;
-
 use std::env;
 use std::path::PathBuf;
+
+use mindr::config::Config;
+use mindr::todo::Todo;
 
 fn get_config_path() -> PathBuf {
     // TODO: improve error handling
@@ -23,9 +24,11 @@ fn get_config_path() -> PathBuf {
 // TODO: think if it's good to add other crate (not mindr) kind of like namespace for config
 fn main() {
     let path = get_config_path();
-    // TODO: to be used
     let config = Config::init(&path);
     config.save();
+
+    let mut todo = Todo::init(&config);
+    todo.run();
 }
 
 // -- For Future: --
