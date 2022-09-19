@@ -2,9 +2,9 @@ use configparser::ini;
 
 use std::fs::{self, File};
 use std::path::Path;
+use std::process;
 use std::slice::Iter;
 use std::str::FromStr;
-use std::process;
 
 // For the future:
 // TODO: Go through methods and decide which should be public
@@ -154,6 +154,7 @@ pub enum Selection {
     Brackets,
     Tilde,
     Outline,
+    Bold,
 }
 
 impl Selection {
@@ -162,6 +163,7 @@ impl Selection {
             Selection::Brackets => "brackets",
             Selection::Tilde => "tilde",
             Selection::Outline => "outline",
+            Selection::Bold => "bold",
         }
     }
 }
@@ -174,8 +176,11 @@ impl FromStr for Selection {
             "brackets" => Ok(Selection::Brackets),
             "tilde" => Ok(Selection::Tilde),
             "outline" => Ok(Selection::Outline),
+            "bold" => Ok(Selection::Bold),
             _ => {
-                return Err("No such selection style available, try using 'brackets/tilde/outline'")
+                return Err(
+                    "No such selection style available, try using 'brackets/tilde/outline/bold'",
+                )
             }
         }
     }

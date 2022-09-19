@@ -1,15 +1,5 @@
-// -- Color --
-// println!("{} hello", termion::color::Fg(termion::color::Blue));
 // -- Terminal Size --
 // println!("{:?}", termion::terminal_size().unwrap());
-// -- Background --
-// println!(
-//     "{}Background{}",
-//     termion::color::Bg(termion::color::Cyan),
-//     termion::color::Bg(termion::color::Reset)
-// );
-// -- Style --
-// println!("{} I'm bold", termion::style::Bold);
 // -- Cursor --
 // termion::cursor::Goto(5, 10);
 // -- Clear --
@@ -26,11 +16,12 @@ use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
 
+// TODO: use alternate screen buffer to don't have history shown but not clear it fully
 fn get_selected_str(string: &str, style: Selection) -> String {
     let selection = match style {
         Selection::Tilde => ("~", " "),
         Selection::Brackets => ("[", "]"),
-        Selection::Outline => (" ", " "),
+        Selection::Outline | Selection::Bold => (" ", " "),
     };
 
     let (start_char, end_char) = selection;
@@ -106,17 +97,52 @@ impl Todo {
 
             String::from(item.as_str())
         });
-        // TODO: think about a way to process Selection style changing background color
-        // probably one if will be enough
+
+        if self.selection_style == Selection::Outline || self.selection_style == Selection::Bold {
+            print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
+            let index = self
+                .menu
+                .iter()
+                .position(|item| *item == self.selected_menu)
+                .unwrap();
+            let mut count = 0;
+            while count < self.menu.len() {
+                if count == index {
+                    if self.selection_style == Selection::Outline {
+                        print!(
+                            "{}{}{}{}{}   ",
+                            termion::color::Bg(termion::color::White),
+                            termion::color::Fg(termion::color::Black),
+                            menu[count],
+                            termion::color::Bg(termion::color::Reset),
+                            termion::color::Fg(termion::color::Reset)
+                        );
+                    } else {
+                        print!(
+                            "{}{}{}   ",
+                            termion::style::Bold,
+                            menu[count],
+                            termion::style::Reset,
+                        );
+                    }
+                } else {
+                    print!("{}   ", menu[count]);
+                }
+
+                count += 1;
+            }
+            println!("");
+            return;
+        }
 
         print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
         println!("{}", menu.join("   "));
     }
 
     pub fn run(&mut self) {
+        print!("{}", termion::cursor::Hide);
         self.draw_menu();
 
-        // TODO: hide and bring back cursor
         let mut stdout = stdout().into_raw_mode().unwrap();
         let stdin = stdin();
 
@@ -124,6 +150,7 @@ impl Todo {
         // TODO: think about all the clones
         for c in stdin.keys() {
             match c.unwrap() {
+                // TODO: import config characters
                 Key::Char('q') => {
                     break;
                 }
@@ -161,5 +188,7 @@ impl Todo {
             }
             stdout.flush().unwrap();
         }
+
+        print!("{}", termion::cursor::Show);
     }
 }
