@@ -16,6 +16,8 @@ use std::str::FromStr;
 // TODO: `read_ini` and `write_ini` could be improved with iterators but it takes some research
 // on how to implement access struct fields using string and get it's fields as string without
 // writing to much code
+// TODO: Improve config key mapping from char to string to be able to use Enter and such, or first
+// try '\n' character
 
 fn read_ini(path: &Path) -> Result<Config, String> {
     let mut ini_config = ini::Ini::new();
@@ -70,7 +72,7 @@ fn read_ini(path: &Path) -> Result<Config, String> {
         Selection::Brackets
     });
 
-    let mut key_mapping: Vec<(Action, String)> = vec![];
+    let mut key_mapping: Vec<(Action, char)> = vec![];
 
     for (index, action) in Action::iterate().enumerate() {
         let key = ini_config
@@ -78,7 +80,8 @@ fn read_ini(path: &Path) -> Result<Config, String> {
             .unwrap_or_else(|| {
                 let default_config = Config::default();
 
-                let (_, default_key): &(Action, String) = default_config
+                // TODO: finish converting to char
+                let (_, default_key) = default_config
                     .key_mapping
                     .iter()
                     .find(|(default_action, _)| default_action.as_str() == action.as_str())
@@ -89,10 +92,16 @@ fn read_ini(path: &Path) -> Result<Config, String> {
                     action, action, &default_key
                 );
 
-                String::from(default_key.as_str())
+                default_key.to_string()
             });
 
-        let mapping = (action.clone(), key);
+        println!("ACTION : {:?}", action);
+        let mapping = (
+            action.clone(),
+            key.chars()
+                .next()
+                .expect("Some configuration key mapping has no key value"),
+        );
 
         key_mapping.insert(index, mapping);
     }
@@ -138,7 +147,7 @@ fn write_ini(config: &Config, path: &Path) {
     );
 
     for (action, key) in &config.key_mapping {
-        ini_config.setstr("key_mapping", action.as_str(), Some(key));
+        ini_config.setstr("key_mapping", action.as_str(), Some(&key.to_string()));
     }
 
     match ini_config.write(path) {
@@ -193,6 +202,7 @@ pub enum Action {
     PrevMenu,
     NextMenu,
     Mark,
+    Quit,
 }
 
 impl Action {
@@ -203,16 +213,18 @@ impl Action {
             Action::PrevMenu => "prev_menu",
             Action::NextMenu => "next_menu",
             Action::Mark => "mark",
+            Action::Quit => "quit",
         }
     }
 
     fn iterate() -> Iter<'static, Action> {
-        static ACTIONS: [Action; 5] = [
+        static ACTIONS: [Action; 6] = [
             Action::Up,
             Action::Down,
             Action::PrevMenu,
             Action::NextMenu,
             Action::Mark,
+            Action::Quit,
         ];
         ACTIONS.iter()
     }
@@ -226,7 +238,7 @@ pub struct Config<'a> {
     pub auto_hide_menu: bool,
     pub hide_menu_timeout: u16,
     pub selection_style: Selection,
-    pub key_mapping: Vec<(Action, String)>,
+    pub key_mapping: Vec<(Action, char)>,
 }
 
 impl<'a> Config<'a> {
@@ -265,11 +277,12 @@ impl<'a> Config<'a> {
 impl<'a> Default for Config<'a> {
     fn default() -> Self {
         let key_mapping = vec![
-            (Action::Up, String::from("j")),
-            (Action::Down, String::from("k")),
-            (Action::PrevMenu, String::from("h")),
-            (Action::NextMenu, String::from("l")),
-            (Action::Mark, String::from("Enter")),
+            (Action::Up, 'j'),
+            (Action::Down, 'k'),
+            (Action::PrevMenu, 'h'),
+            (Action::NextMenu, 'l'),
+            (Action::Mark, 'e'),
+            (Action::Quit, 'q'),
         ];
 
         Config {

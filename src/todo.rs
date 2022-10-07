@@ -5,6 +5,7 @@
 // -- Clear --
 // print!("{}", termion::clear::All);
 // println!("{}", termion::cursor::Show);
+use crate::config::Action;
 use std::io::{stdin, stdout, Write};
 use std::str::FromStr;
 
@@ -16,7 +17,8 @@ use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
 
-// TODO: use alternate screen buffer to don't have history shown but not clear it fully
+const SPACING: &'static str = "   ";
+
 fn get_selected_str(string: &str, style: Selection) -> String {
     let selection = match style {
         Selection::Tilde => ("~", " "),
@@ -30,6 +32,41 @@ fn get_selected_str(string: &str, style: Selection) -> String {
     result.replace(" ", end_char)
 }
 
+// TODO: think about creating termion struct wrapper
+fn print_outline(string: &str) {
+    print!(
+        "{bg}{fg}{item}{bg_clear}{fg_clear}{spacing}",
+        bg = termion::color::Bg(termion::color::White),
+        fg = termion::color::Fg(termion::color::Black),
+        item = string,
+        bg_clear = termion::color::Bg(termion::color::Reset),
+        fg_clear = termion::color::Fg(termion::color::Reset),
+        spacing = SPACING
+    );
+}
+
+fn print_bold(string: &str) {
+    print!(
+        "{bold}{item}{reset}{spacing}",
+        bold = termion::style::Bold,
+        item = string,
+        reset = termion::style::Reset,
+        spacing = SPACING
+    );
+}
+
+fn print_item(string: &str) {
+    print!("{item}{spacing}", item = string, spacing = SPACING);
+}
+
+fn prepare_print() {
+    print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
+}
+
+fn finish_print() {
+    println!("");
+}
+
 #[derive(PartialEq, Clone)]
 enum Menu {
     Todo,
@@ -41,7 +78,7 @@ enum Menu {
 impl<'a> Menu {
     fn as_str(&self) -> &'a str {
         match self {
-            // Think about getting rid of spaces, instead adding them programmatically
+            // TODO: Think about getting rid of spaces, instead adding them programmatically
             Menu::Todo => " TODO ",
             Menu::Done => " DONE ",
             Menu::Settings => " SETTINGS ",
@@ -67,18 +104,20 @@ impl FromStr for Menu {
 }
 
 #[derive(Clone)]
-pub struct Todo {
+pub struct Todo<'a> {
     menu: [Menu; 4],
     selected_menu: Menu,
-    selection_style: Selection,
+    selection_style: &'a Selection,
+    key_mapping: &'a Vec<(Action, char)>,
 }
 
-impl Todo {
-    pub fn init(config: &Config) -> Self {
+impl<'a> Todo<'a> {
+    pub fn init(config: &'a Config) -> Self {
         Todo {
             menu: [Menu::Todo, Menu::Done, Menu::Settings, Menu::Help],
             selected_menu: Menu::Todo,
-            selection_style: config.selection_style.clone(),
+            selection_style: &config.selection_style,
+            key_mapping: &config.key_mapping,
         }
     }
 
@@ -86,8 +125,19 @@ impl Todo {
         self.selected_menu = menu;
     }
 
-    // TODO: refactor
+    fn get_action_char(&self, action: Action) -> char {
+        let (_, key) = self
+            .key_mapping
+            .iter()
+            .find(|(map_action, _)| *map_action == action)
+            .expect("No such action exist");
+
+        *key
+    }
+
     fn draw_menu(&self) {
+        prepare_print();
+
         let menu = self.menu.clone();
 
         let menu = menu.map(|item| {
@@ -98,69 +148,62 @@ impl Todo {
             String::from(item.as_str())
         });
 
-        if self.selection_style == Selection::Outline || self.selection_style == Selection::Bold {
-            print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
+        if *self.selection_style == Selection::Outline || *self.selection_style == Selection::Bold {
             let index = self
                 .menu
                 .iter()
                 .position(|item| *item == self.selected_menu)
                 .unwrap();
+
             let mut count = 0;
+
             while count < self.menu.len() {
                 if count == index {
-                    if self.selection_style == Selection::Outline {
-                        print!(
-                            "{}{}{}{}{}   ",
-                            termion::color::Bg(termion::color::White),
-                            termion::color::Fg(termion::color::Black),
-                            menu[count],
-                            termion::color::Bg(termion::color::Reset),
-                            termion::color::Fg(termion::color::Reset)
-                        );
-                    } else {
-                        print!(
-                            "{}{}{}   ",
-                            termion::style::Bold,
-                            menu[count],
-                            termion::style::Reset,
-                        );
+                    if *self.selection_style == Selection::Outline {
+                        print_outline(&menu[count]);
+                    }
+
+                    if *self.selection_style == Selection::Bold {
+                        print_bold(&menu[count]);
                     }
                 } else {
-                    print!("{}   ", menu[count]);
+                    print_item(&menu[count]);
                 }
 
                 count += 1;
             }
-            println!("");
-            return;
+        } else {
+            print!("{}", menu.join(SPACING));
         }
 
-        print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
-        println!("{}", menu.join("   "));
+        finish_print();
     }
 
     pub fn run(&mut self) {
         print!("{}", termion::cursor::Hide);
+
+        let stdin = stdin();
+        // TODO: think about `::`
+        let mut screen = termion::screen::AlternateScreen::from(stdout().into_raw_mode().unwrap());
+
         self.draw_menu();
 
-        let mut stdout = stdout().into_raw_mode().unwrap();
-        let stdin = stdin();
-
         // TODO: improve unwraps
+
         // TODO: think about all the clones
         for c in stdin.keys() {
             match c.unwrap() {
-                // TODO: import config characters
-                Key::Char('q') => {
+                Key::Char(ch) if ch == self.get_action_char(Action::Quit) => {
                     break;
                 }
                 // TODO: refactor
-                Key::Char('h') => {
+                Key::Char(ch) if ch == self.get_action_char(Action::PrevMenu) => {
                     let index = self
                         .menu
                         .iter()
                         .position(|item| *item == self.selected_menu)
                         .unwrap();
+                    // TODO: probably create Menu struct to implement methods 
                     let mut chosen_menu = Menu::Todo;
                     if index > 0 {
                         chosen_menu = self.menu[index - 1].clone();
@@ -169,7 +212,7 @@ impl Todo {
                     self.set_selected_menu(chosen_menu);
                     self.draw_menu();
                 }
-                Key::Char('l') => {
+                Key::Char(ch) if ch == self.get_action_char(Action::NextMenu) => {
                     let index = self
                         .menu
                         .iter()
@@ -186,7 +229,8 @@ impl Todo {
                 }
                 _ => {}
             }
-            stdout.flush().unwrap();
+
+            screen.flush().unwrap();
         }
 
         print!("{}", termion::cursor::Show);
