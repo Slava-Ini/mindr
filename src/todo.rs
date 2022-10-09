@@ -79,10 +79,6 @@ enum Menu {
 }
 
 impl<'a> Menu {
-    fn wrap(text: &str) -> String {
-        format!("{WRAPPER}{text}{WRAPPER}")
-    }
-
     fn as_str(&self) -> String {
         match self {
             Menu::Todo => format!("{WRAPPER}TODO{WRAPPER}"),
