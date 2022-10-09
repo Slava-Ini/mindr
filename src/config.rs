@@ -1,10 +1,12 @@
 use configparser::ini;
+use std::str::FromStr;
+
+use crate::todo::selection::Selection;
 
 use std::fs::{self, File};
 use std::path::Path;
 use std::process;
 use std::slice::Iter;
-use std::str::FromStr;
 
 // For the future:
 // TODO: Go through methods and decide which should be public
@@ -80,12 +82,11 @@ fn read_ini(path: &Path) -> Result<Config, String> {
             .unwrap_or_else(|| {
                 let default_config = Config::default();
 
-                // TODO: finish converting to char
                 let (_, default_key) = default_config
                     .key_mapping
                     .iter()
                     .find(|(default_action, _)| default_action.as_str() == action.as_str())
-                    .unwrap();
+                    .expect("Couldn't find an action");
 
                 eprintln!(
                     "Couldn't get '{:?}' action key. '{:?}' will be set to default {:?}",
@@ -155,43 +156,6 @@ fn write_ini(config: &Config, path: &Path) {
         }
         _ => (),
     };
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Selection {
-    Brackets,
-    Tilde,
-    Outline,
-    Bold,
-}
-
-impl Selection {
-    fn as_str(&self) -> &'static str {
-        match self {
-            Selection::Brackets => "brackets",
-            Selection::Tilde => "tilde",
-            Selection::Outline => "outline",
-            Selection::Bold => "bold",
-        }
-    }
-}
-
-impl FromStr for Selection {
-    type Err = &'static str;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "brackets" => Ok(Selection::Brackets),
-            "tilde" => Ok(Selection::Tilde),
-            "outline" => Ok(Selection::Outline),
-            "bold" => Ok(Selection::Bold),
-            _ => {
-                return Err(
-                    "No such selection style available, try using 'brackets/tilde/outline/bold'",
-                )
-            }
-        }
-    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]

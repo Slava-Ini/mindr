@@ -5,12 +5,16 @@
 // -- Clear --
 // print!("{}", termion::clear::All);
 // println!("{}", termion::cursor::Show);
-use crate::config::Action;
+pub mod list;
+pub mod menu;
+pub mod selection;
+
 use std::io::{stdin, stdout, Write};
 use std::str::FromStr;
 
+use crate::config::Action;
 use crate::config::Config;
-use crate::config::Selection;
+use crate::todo::selection::Selection;
 
 use termion;
 use termion::event::Key;
@@ -19,47 +23,11 @@ use termion::raw::IntoRawMode;
 
 // TODO: Make menu and all menu related fields into separate file and struct (** mark)
 
-const SPACING: &'static str = "   ";
+const MENU_SPACING: &'static str = "   ";
 const WRAPPER: &'static str = " ";
 
-fn get_selected_str(string: &str, style: Selection) -> String {
-    let selection = match style {
-        Selection::Tilde => ("~", WRAPPER),
-        Selection::Brackets => ("[", "]"),
-        Selection::Outline | Selection::Bold => (WRAPPER, WRAPPER),
-    };
-
-    let (start_char, end_char) = selection;
-
-    let result = string.replacen(WRAPPER, start_char, 1);
-    result.replace(WRAPPER, end_char)
-}
-
-// TODO: think about creating termion struct wrapper
-fn print_outline(string: &str) {
-    print!(
-        "{bg}{fg}{item}{bg_clear}{fg_clear}{spacing}",
-        bg = termion::color::Bg(termion::color::White),
-        fg = termion::color::Fg(termion::color::Black),
-        item = string,
-        bg_clear = termion::color::Bg(termion::color::Reset),
-        fg_clear = termion::color::Fg(termion::color::Reset),
-        spacing = SPACING
-    );
-}
-
-fn print_bold(string: &str) {
-    print!(
-        "{bold}{item}{reset}{spacing}",
-        bold = termion::style::Bold,
-        item = string,
-        reset = termion::style::Reset,
-        spacing = SPACING
-    );
-}
-
 fn print_item(string: &str) {
-    print!("{item}{spacing}", item = string, spacing = SPACING);
+    print!("{item}{spacing}", item = string, spacing = MENU_SPACING);
 }
 
 fn prepare_print() {
@@ -81,6 +49,7 @@ enum Menu {
 impl<'a> Menu {
     fn as_str(&self) -> String {
         match self {
+            // TODO: probably move this logic to `selection` as `get_wrapped_str`
             Menu::Todo => format!("{WRAPPER}TODO{WRAPPER}"),
             Menu::Done => format!("{WRAPPER}DONE{WRAPPER}"),
             Menu::Settings => format!("{WRAPPER}SETTINGS{WRAPPER}"),
@@ -149,7 +118,7 @@ impl<'a> Todo<'a> {
 
         let menu = menu.map(|item| {
             if item == self.selected_menu {
-                return get_selected_str(&item.as_str(), self.selection_style.clone());
+                return Selection::get_selected_str(&item.as_str(), self.selection_style.clone());
             }
 
             item.as_str()
@@ -167,11 +136,11 @@ impl<'a> Todo<'a> {
             while count < self.menu.len() {
                 if count == index {
                     if *self.selection_style == Selection::Outline {
-                        print_outline(&menu[count]);
+                        Selection::print_outline(&menu[count], Some(MENU_SPACING));
                     }
 
                     if *self.selection_style == Selection::Bold {
-                        print_bold(&menu[count]);
+                        Selection::print_bold(&menu[count], Some(MENU_SPACING));
                     }
                 } else {
                     print_item(&menu[count]);
@@ -180,7 +149,7 @@ impl<'a> Todo<'a> {
                 count += 1;
             }
         } else {
-            print!("{}", menu.join(SPACING));
+            print!("{}", menu.join(MENU_SPACING));
         }
 
         finish_print();
