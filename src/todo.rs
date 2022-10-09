@@ -17,19 +17,22 @@ use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
 
+// TODO: Make menu and all menu related fields into separate file and struct (** mark)
+
 const SPACING: &'static str = "   ";
+const WRAPPER: &'static str = " ";
 
 fn get_selected_str(string: &str, style: Selection) -> String {
     let selection = match style {
-        Selection::Tilde => ("~", " "),
+        Selection::Tilde => ("~", WRAPPER),
         Selection::Brackets => ("[", "]"),
-        Selection::Outline | Selection::Bold => (" ", " "),
+        Selection::Outline | Selection::Bold => (WRAPPER, WRAPPER),
     };
 
     let (start_char, end_char) = selection;
 
-    let result = string.replacen(" ", start_char, 1);
-    result.replace(" ", end_char)
+    let result = string.replacen(WRAPPER, start_char, 1);
+    result.replace(WRAPPER, end_char)
 }
 
 // TODO: think about creating termion struct wrapper
@@ -76,13 +79,16 @@ enum Menu {
 }
 
 impl<'a> Menu {
-    fn as_str(&self) -> &'a str {
+    fn wrap(text: &str) -> String {
+        format!("{WRAPPER}{text}{WRAPPER}")
+    }
+
+    fn as_str(&self) -> String {
         match self {
-            // TODO: Think about getting rid of spaces, instead adding them programmatically
-            Menu::Todo => " TODO ",
-            Menu::Done => " DONE ",
-            Menu::Settings => " SETTINGS ",
-            Menu::Help => " HELP ",
+            Menu::Todo => format!("{WRAPPER}TODO{WRAPPER}"),
+            Menu::Done => format!("{WRAPPER}DONE{WRAPPER}"),
+            Menu::Settings => format!("{WRAPPER}SETTINGS{WRAPPER}"),
+            Menu::Help => format!("{WRAPPER}HELP{WRAPPER}"),
         }
     }
 }
@@ -105,7 +111,9 @@ impl FromStr for Menu {
 
 #[derive(Clone)]
 pub struct Todo<'a> {
+    // **
     menu: [Menu; 4],
+    // **
     selected_menu: Menu,
     selection_style: &'a Selection,
     key_mapping: &'a Vec<(Action, char)>,
@@ -121,6 +129,7 @@ impl<'a> Todo<'a> {
         }
     }
 
+    // **
     fn set_selected_menu(&mut self, menu: Menu) {
         self.selected_menu = menu;
     }
@@ -135,6 +144,8 @@ impl<'a> Todo<'a> {
         *key
     }
 
+    // ** Menu will render itself, but todo will be managing prints and call menu.render
+    // Think about it more
     fn draw_menu(&self) {
         prepare_print();
 
@@ -142,10 +153,10 @@ impl<'a> Todo<'a> {
 
         let menu = menu.map(|item| {
             if item == self.selected_menu {
-                return get_selected_str(item.as_str(), self.selection_style.clone());
+                return get_selected_str(&item.as_str(), self.selection_style.clone());
             }
 
-            String::from(item.as_str())
+            item.as_str()
         });
 
         if *self.selection_style == Selection::Outline || *self.selection_style == Selection::Bold {
@@ -179,50 +190,61 @@ impl<'a> Todo<'a> {
         finish_print();
     }
 
+    // ** Also think about clones when implementing menu struct
+    fn get_prev_menu(&self) -> Menu {
+        let index = self
+            .menu
+            .iter()
+            .position(|item| *item == self.selected_menu)
+            .expect("No such menu item");
+
+        let chosen_menu = if index > 0 {
+            self.menu[index - 1].clone()
+        } else {
+            self.selected_menu.clone()
+        };
+
+        chosen_menu
+    }
+
+    // **
+    fn get_next_menu(&self) -> Menu {
+        let index = self
+            .menu
+            .iter()
+            .position(|item| *item == self.selected_menu)
+            .expect("No such menu item");
+
+        let chosen_menu = if index < self.menu.len() - 1 {
+            self.menu[index + 1].clone()
+        } else {
+            self.selected_menu.clone()
+        };
+
+        chosen_menu
+    }
+
     pub fn run(&mut self) {
         print!("{}", termion::cursor::Hide);
 
         let stdin = stdin();
-        // TODO: think about `::`
         let mut screen = termion::screen::AlternateScreen::from(stdout().into_raw_mode().unwrap());
 
         self.draw_menu();
 
-        // TODO: improve unwraps
-
-        // TODO: think about all the clones
         for c in stdin.keys() {
             match c.unwrap() {
                 Key::Char(ch) if ch == self.get_action_char(Action::Quit) => {
                     break;
                 }
-                // TODO: refactor
                 Key::Char(ch) if ch == self.get_action_char(Action::PrevMenu) => {
-                    let index = self
-                        .menu
-                        .iter()
-                        .position(|item| *item == self.selected_menu)
-                        .unwrap();
-                    // TODO: probably create Menu struct to implement methods 
-                    let mut chosen_menu = Menu::Todo;
-                    if index > 0 {
-                        chosen_menu = self.menu[index - 1].clone();
-                    }
+                    let chosen_menu = self.get_prev_menu();
 
                     self.set_selected_menu(chosen_menu);
                     self.draw_menu();
                 }
                 Key::Char(ch) if ch == self.get_action_char(Action::NextMenu) => {
-                    let index = self
-                        .menu
-                        .iter()
-                        .position(|item| *item == self.selected_menu)
-                        .unwrap();
-                    let mut chosen_menu = Menu::Help;
-
-                    if index < 3 {
-                        chosen_menu = self.menu[index + 1].clone();
-                    }
+                    let chosen_menu = self.get_next_menu();
 
                     self.set_selected_menu(chosen_menu);
                     self.draw_menu();

@@ -95,7 +95,6 @@ fn read_ini(path: &Path) -> Result<Config, String> {
                 default_key.to_string()
             });
 
-        println!("ACTION : {:?}", action);
         let mapping = (
             action.clone(),
             key.chars()
