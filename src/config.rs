@@ -158,6 +158,7 @@ fn write_ini(config: &Config, path: &Path) {
     };
 }
 
+// TODO: should probabaly put action in separate module
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Action {
     Up,
@@ -190,6 +191,15 @@ impl Action {
             Action::Quit,
         ];
         ACTIONS.iter()
+    }
+
+    pub fn get_action_char(key_mapping: &Vec<(Self, char)>, action: Action) -> char {
+        let (_, key) = key_mapping
+            .iter()
+            .find(|(map_action, _)| *map_action == action)
+            .expect("No such action exist");
+
+        *key
     }
 }
 

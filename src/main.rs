@@ -2,7 +2,6 @@ use std::env;
 use std::path::PathBuf;
 
 use mindr::config::Config;
-use mindr::todo::list::List;
 use mindr::todo::Todo;
 
 fn get_config_path() -> PathBuf {
@@ -26,9 +25,6 @@ fn main() {
     let path = get_config_path();
     let config = Config::init(&path);
     config.save();
-
-    let list = List::read();
-    println!("{:#?}", list);
 
     let mut todo = Todo::init(&config);
     todo.run();

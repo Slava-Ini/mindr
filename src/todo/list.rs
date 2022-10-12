@@ -8,9 +8,11 @@ use core::str::FromStr;
 
 use chrono::{DateTime, Utc};
 
+use super::helper::{prepare_print, finish_print};
+
 const DELIMITER: &'static str = "|";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Status {
     Todo,
     Done,
@@ -29,7 +31,7 @@ impl FromStr for Status {
 }
 
 // TODO: remove all debug derivatives
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct TodoItem {
     id: u32,
     date_created: DateTime<Utc>,
@@ -49,7 +51,7 @@ fn get_list_path() -> PathBuf {
     path
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct List {
     todo_list: Vec<TodoItem>,
 }
@@ -64,10 +66,11 @@ where
 }
 
 impl List {
-    pub fn read() -> List {
+    pub fn init() -> Self {
         let path = get_list_path();
         // let dt = Utc::now().to_string();
         // let dt_from_str = dt.parse::<DateTime<Utc>>().unwrap();
+        
 
         let lines = match read_lines(&path) {
             Ok(lines) => lines,
@@ -118,7 +121,13 @@ impl List {
 
     fn write(&self) {}
 
-    fn render(&self) {
+    pub fn render(&self) {
+        // prepare_print();
+        for item in &self.todo_list {
+            println!("{:?}", item);
+        }
+        // finish_print();
+        // TODO: also add initialization of `todo.txt` list in config!!
 
        
     }

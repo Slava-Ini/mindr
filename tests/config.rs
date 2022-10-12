@@ -1,4 +1,5 @@
-use mindr::config::{Config, Selection};
+use mindr::config::Config;
+use mindr::todo::selection::Selection;
 use serial_test::serial;
 
 use std::path::PathBuf;
