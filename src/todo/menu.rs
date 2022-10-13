@@ -7,6 +7,7 @@ use crate::todo::Action;
 
 use termion;
 use termion::event::Key;
+use termion::input::Keys;
 use termion::input::TermRead;
 use termion::raw::RawTerminal;
 use termion::screen::AlternateScreen;
@@ -110,7 +111,7 @@ impl<'a> Menu<'a> {
     }
 
     pub fn render(&self) {
-        // prepare_print();
+        prepare_print();
 
         let menu = self.menu.clone();
 
@@ -131,6 +132,7 @@ impl<'a> Menu<'a> {
 
             let mut count = 0;
 
+            // TODO: check if it can be changed to for in iterator
             while count < self.menu.len() {
                 if count == index {
                     if *self.selection_style == Selection::Outline {
@@ -149,36 +151,25 @@ impl<'a> Menu<'a> {
         } else {
             print!("{}", menu.join(MENU_SPACING));
         }
-
-        // finish_print();
     }
 
-    pub fn listen_keys(&mut self, stdin: Stdin, mut screen: AlternateScreen<RawTerminal<Stdout>>) {
-        for c in stdin.keys() {
-            match c.unwrap() {
-                Key::Char(ch) if ch == Action::get_action_char(self.key_mapping, Action::Quit) => {
-                    break;
-                }
-                Key::Char(ch)
-                    if ch == Action::get_action_char(self.key_mapping, Action::PrevMenu) =>
-                {
-                    let chosen_menu = self.get_prev_menu();
-
-                    self.set_selected_menu(chosen_menu);
-                    self.render();
-                }
-                Key::Char(ch)
-                    if ch == Action::get_action_char(self.key_mapping, Action::NextMenu) =>
-                {
-                    let chosen_menu = self.get_next_menu();
-
-                    self.set_selected_menu(chosen_menu);
-                    self.render();
-                }
-                _ => {}
+    pub fn listen_keys(&mut self, key: &Key) {
+        match key {
+            Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::Quit) => {
             }
+            Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::PrevMenu) => {
+                let chosen_menu = self.get_prev_menu();
 
-            screen.flush().unwrap();
+                self.set_selected_menu(chosen_menu);
+                self.render();
+            }
+            Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::NextMenu) => {
+                let chosen_menu = self.get_next_menu();
+
+                self.set_selected_menu(chosen_menu);
+                self.render();
+            }
+            _ => {}
         }
     }
 }
