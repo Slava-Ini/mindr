@@ -27,8 +27,10 @@ pub struct Todo<'a> {
 
 impl<'a> Todo<'a> {
     pub fn init(config: &'a Config) -> Self {
+        // TODO: maybe there is a way to get rid of &config.key_mapping somewhow maybe just pass a
+        // whole config or not
         let menu = Menu::init(&config.selection_style, &config.key_mapping);
-        let list = List::init(&config.selection_style);
+        let list = List::init(&config.selection_style, &config.key_mapping);
 
         Todo {
             menu,
@@ -48,6 +50,7 @@ impl<'a> Todo<'a> {
 
         let keys = stdin.keys();
 
+        // TODO: probably make into a one `self` method
         self.menu.render();
         self.list.render();
 
@@ -64,9 +67,11 @@ impl<'a> Todo<'a> {
 
             self.menu.render();
             self.list.render();
+
             screen.flush().unwrap();
         }
 
+        // TODO: probably not needed
         finish_print();
         print!("{}", termion::cursor::Show);
     }

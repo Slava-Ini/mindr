@@ -1,3 +1,8 @@
+// TODO: refactor imports
+use crate::todo::helper::move_cursor;
+use crate::todo::selection::PrintStyle;
+use crate::todo::Action;
+
 use std::env;
 use std::fs::File;
 use std::io;
@@ -20,7 +25,12 @@ use super::helper::{finish_print, prepare_print};
 
 const DELIMITER: &'static str = "|";
 const WRAPPER: &'static str = " ";
-const LIST_SPACING: &'static str = "";
+const LIST_MARK: &'static str = "•";
+const LIST_SPACING: &'static str = " ";
+
+// TODO: add emojis in the future
+// TODO: think about page scroll when many todos
+// TODO: think about line return if text doesn't fit or set maximum text length
 
 #[derive(Debug, Clone, PartialEq)]
 enum Status {
@@ -64,6 +74,7 @@ fn get_list_path() -> PathBuf {
 #[derive(Debug, Clone)]
 pub struct List<'a> {
     todo_list: Vec<TodoItem>,
+    key_mapping: &'a Vec<(Action, char)>,
     selection_style: &'a Selection,
     selected_index: u16,
 }
@@ -78,7 +89,7 @@ where
 }
 
 impl<'a> List<'a> {
-    pub fn init(selection_style: &'a Selection) -> Self {
+    pub fn init(selection_style: &'a Selection, key_mapping: &'a Vec<(Action, char)>) -> Self {
         let path = get_list_path();
         // let dt = Utc::now().to_string();
         // let dt_from_str = dt.parse::<DateTime<Utc>>().unwrap();
@@ -96,7 +107,7 @@ impl<'a> List<'a> {
             let line = match line {
                 Ok(line) => line,
                 Err(error) => {
-                    panic!("todo.txt file seems to be corrupted: {error}. Try deleting the file and restarting mindr. NOTE: NOTE: deleting the file will destroy user's todo list data");
+                    panic!("todo.txt file seems to be corrupted: {error}. Try deleting the file and restarting mindr. NOTE: deleting the file will destroy user's todo list data");
                 }
             };
 
@@ -115,7 +126,7 @@ impl<'a> List<'a> {
                 Status::Todo
             });
             let description = item_config[4].to_owned();
-            let description = format!("{WRAPPER}{description}{WRAPPER}");
+            let description = format!("{WRAPPER}{LIST_MARK}{LIST_SPACING}{description}{WRAPPER}");
 
             let todo_item = TodoItem {
                 id,
@@ -130,6 +141,7 @@ impl<'a> List<'a> {
 
         List {
             todo_list,
+            key_mapping,
             selection_style,
             selected_index: 0,
         }
@@ -141,30 +153,44 @@ impl<'a> List<'a> {
         // TODO: make count better
         let mut count = 2;
 
-        // TODO: refactor
         for item in &self.todo_list {
-            println!("{}", termion::cursor::Goto(2, count));
+            move_cursor(2, count);
+
             let index = &self.todo_list.iter().position(|todo| todo == item).unwrap();
             let selected_index = &(self.selected_index as usize);
+            let selection = if selected_index == index {
+                Some(self.selection_style)
+            } else {
+                None
+            };
 
-            if *self.selection_style == Selection::Outline {
-                if selected_index == index {
-                    Selection::print_outline(
-                        &self.todo_list[*selected_index].description,
-                        Some(LIST_SPACING),
-                    );
-                } else {
-                    println!("{}", item.description);
-                }
-            }
+            let print_style = PrintStyle {
+                selection,
+                strikethrough: item.status == Status::Done,
+                spacing: Some(LIST_SPACING),
+            };
 
-            count += 2;
+            Selection::print_styled(&item.description, print_style);
+
+            count += 1;
         }
+
+        finish_print();
         // TODO: also add initialization of `todo.txt` list in config!!
     }
 
-    pub fn listen_keys(&self, key: &Key) {
+    pub fn listen_keys(&mut self, key: &Key) {
         match key {
+            Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::Up) => {
+                if self.selected_index != 0 {
+                    self.selected_index -= 1;
+                }
+            }
+            Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::Down) => {
+                if self.selected_index < (self.todo_list.len() - 1) as u16 {
+                    self.selected_index += 1;
+                }
+            }
             _ => {}
         }
     }

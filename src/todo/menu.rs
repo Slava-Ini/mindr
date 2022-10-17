@@ -111,6 +111,7 @@ impl<'a> Menu<'a> {
     }
 
     pub fn render(&self) {
+        // TODO: refactor render with the new function
         prepare_print();
 
         let menu = self.menu.clone();
@@ -155,8 +156,6 @@ impl<'a> Menu<'a> {
 
     pub fn listen_keys(&mut self, key: &Key) {
         match key {
-            Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::Quit) => {
-            }
             Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::PrevMenu) => {
                 let chosen_menu = self.get_prev_menu();
 

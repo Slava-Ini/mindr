@@ -9,3 +9,7 @@ pub fn prepare_print() {
 pub fn finish_print() {
     println!("");
 }
+
+pub fn move_cursor(x: u16, y: u16) {
+    println!("{}", termion::cursor::Goto(x, y));
+}
