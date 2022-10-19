@@ -1,16 +1,12 @@
-use std::io::{Stdin, Stdout, Write};
+use crate::todo::selection::PrintStyle;
 use std::str::FromStr;
 
-use crate::todo::helper::{finish_print, prepare_print, print_item};
+use crate::todo::helper::prepare_print;
 use crate::todo::selection::Selection;
 use crate::todo::Action;
 
 use termion;
 use termion::event::Key;
-use termion::input::Keys;
-use termion::input::TermRead;
-use termion::raw::RawTerminal;
-use termion::screen::AlternateScreen;
 
 const MENU_SPACING: &'static str = "   ";
 const WRAPPER: &'static str = " ";
@@ -111,46 +107,24 @@ impl<'a> Menu<'a> {
     }
 
     pub fn render(&self) {
-        // TODO: refactor render with the new function
         prepare_print();
 
         let menu = self.menu.clone();
 
-        let menu = menu.map(|item| {
-            if item == self.selected_menu {
-                return Selection::get_selected_str(&item.as_str(), self.selection_style.clone());
-            }
+        for item in menu {
+            let selection = if item == self.selected_menu {
+                Some(self.selection_style)
+            } else {
+                None
+            };
 
-            item.as_str()
-        });
+            let print_style = PrintStyle {
+                selection,
+                strikethrough: false,
+                spacing: Some(MENU_SPACING),
+            };
 
-        if *self.selection_style == Selection::Outline || *self.selection_style == Selection::Bold {
-            let index = self
-                .menu
-                .iter()
-                .position(|item| *item == self.selected_menu)
-                .unwrap();
-
-            let mut count = 0;
-
-            // TODO: check if it can be changed to for in iterator
-            while count < self.menu.len() {
-                if count == index {
-                    if *self.selection_style == Selection::Outline {
-                        Selection::print_outline(&menu[count], Some(MENU_SPACING));
-                    }
-
-                    if *self.selection_style == Selection::Bold {
-                        Selection::print_bold(&menu[count], Some(MENU_SPACING));
-                    }
-                } else {
-                    print_item(&menu[count], MENU_SPACING);
-                }
-
-                count += 1;
-            }
-        } else {
-            print!("{}", menu.join(MENU_SPACING));
+            Selection::print_styled(&item.as_str(), print_style);
         }
     }
 

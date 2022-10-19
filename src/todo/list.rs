@@ -1,32 +1,27 @@
 // TODO: refactor imports
-use crate::todo::helper::move_cursor;
+use crate::todo::helper::{finish_print, move_cursor};
 use crate::todo::selection::PrintStyle;
+use crate::todo::selection::Selection;
 use crate::todo::Action;
 
 use std::env;
 use std::fs::File;
 use std::io;
 use std::io::BufRead;
-use std::io::{Stdin, Stdout, Write};
 use std::path::{Path, PathBuf};
-
-use crate::todo::selection::Selection;
 
 use core::str::FromStr;
 
 use chrono::{DateTime, Utc};
+
 use termion;
 use termion::event::Key;
-use termion::input::Keys;
-use termion::raw::RawTerminal;
-use termion::screen::AlternateScreen;
-
-use super::helper::{finish_print, prepare_print};
 
 const DELIMITER: &'static str = "|";
 const WRAPPER: &'static str = " ";
 const LIST_MARK: &'static str = "•";
 const LIST_SPACING: &'static str = " ";
+const CURSOR_MARGIN: u16 = 2;
 
 // TODO: add emojis in the future
 // TODO: think about page scroll when many todos
@@ -150,11 +145,10 @@ impl<'a> List<'a> {
     fn write(&self) {}
 
     pub fn render(&self) {
-        // TODO: make count better
-        let mut count = 2;
+        let mut cursor_y = 2;
 
         for item in &self.todo_list {
-            move_cursor(2, count);
+            move_cursor(CURSOR_MARGIN, cursor_y);
 
             let index = &self.todo_list.iter().position(|todo| todo == item).unwrap();
             let selected_index = &(self.selected_index as usize);
@@ -172,7 +166,7 @@ impl<'a> List<'a> {
 
             Selection::print_styled(&item.description, print_style);
 
-            count += 1;
+            cursor_y += 1;
         }
 
         finish_print();

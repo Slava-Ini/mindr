@@ -7,11 +7,9 @@ use std::io::{stdin, stdout, Write};
 
 use crate::config::Action;
 use crate::config::Config;
-use crate::todo::helper::finish_print;
-use crate::todo::helper::prepare_print;
+use crate::todo::helper::{hide_cursor, prepare_print, show_cursor};
 use crate::todo::list::List;
 use crate::todo::menu::Menu;
-use crate::todo::selection::Selection;
 
 use termion;
 use termion::event::Key;
@@ -22,7 +20,6 @@ pub struct Todo<'a> {
     menu: Menu<'a>,
     list: List<'a>,
     key_mapping: &'a Vec<(Action, char)>,
-    selection_style: &'a Selection,
 }
 
 impl<'a> Todo<'a> {
@@ -36,13 +33,11 @@ impl<'a> Todo<'a> {
             menu,
             list,
             key_mapping: &config.key_mapping,
-            selection_style: &config.selection_style,
         }
     }
 
     pub fn run(&mut self) {
-        // TODO: put hide and show inside print functions
-        print!("{}", termion::cursor::Hide);
+        hide_cursor();
         prepare_print();
 
         let stdin = stdin();
@@ -71,8 +66,6 @@ impl<'a> Todo<'a> {
             screen.flush().unwrap();
         }
 
-        // TODO: probably not needed
-        finish_print();
-        print!("{}", termion::cursor::Show);
+        show_cursor();
     }
 }

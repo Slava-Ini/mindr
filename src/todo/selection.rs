@@ -93,18 +93,16 @@ impl Selection {
             // TODO: can be improved in the future for non-ASCII chars
             format!(
                 "{first_char}{strikethrough}{rest_chars}{reset}{last_char}",
-                first_char = &string[..1],
+                // Second bullet char is unicode, so it is 3-bit long, ending at index 4 inclusive
+                first_char = &string[..5],
                 strikethrough = termion::style::CrossedOut,
-                rest_chars = &string[1..last_index],
-                reset = termion::style::Reset,
+                rest_chars = &string[5..last_index],
+                reset = termion::style::NoCrossedOut,
                 last_char = &string[last_index..],
             )
         } else {
             string.to_owned()
         };
-
-        // TODO: first re-write menu and then fix the bugs
-        let text = Selection::get_selected_str(&text, selection.unwrap_or(&Selection::Brackets));
 
         match selection {
             Some(Selection::Bold) => {
@@ -117,8 +115,6 @@ impl Selection {
                 );
             }
             Some(Selection::Outline) => {
-                // TODO: all match arms' text can be put above
-                print!("TEXT: |{}|", text);
                 print!(
                     "{bg}{fg}{item}{bg_clear}{fg_clear}{spacing}",
                     bg = termion::color::Bg(termion::color::White),
@@ -130,9 +126,15 @@ impl Selection {
                 );
             }
             Some(Selection::Brackets) => {
+                let text =
+
+                    Selection::get_selected_str(&text, &Selection::Brackets);
                 print_item(&text, spacing.unwrap_or(DEFAULT_SPACING));
             }
             Some(Selection::Tilde) => {
+                let text =
+                    Selection::get_selected_str(&text, &Selection::Tilde);
+
                 print_item(&text, spacing.unwrap_or(DEFAULT_SPACING));
             }
             None => {
