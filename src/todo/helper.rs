@@ -13,8 +13,14 @@ pub fn finish_print() {
 pub fn hide_cursor() {
     print!("{}", termion::cursor::Hide);
 }
+
+// TODO: remove or merge the two functions, or at least rename
 pub fn show_cursor() {
     print!("{}", termion::cursor::Show);
+}
+
+pub fn show_blinking_cursor() {
+    print!("{}{}", termion::cursor::BlinkingBar, termion::cursor::Show);
 }
 
 pub fn move_cursor(x: u16, y: u16) {

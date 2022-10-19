@@ -167,6 +167,9 @@ pub enum Action {
     NextMenu,
     Mark,
     Quit,
+    AddTodo,
+    RemoveTodo,
+    EditTodo,
 }
 
 impl Action {
@@ -178,17 +181,23 @@ impl Action {
             Action::NextMenu => "next_menu",
             Action::Mark => "mark",
             Action::Quit => "quit",
+            Action::AddTodo => "add_todo",
+            Action::RemoveTodo => "remove_todo",
+            Action::EditTodo => "edit_todo",
         }
     }
 
     fn iterate() -> Iter<'static, Action> {
-        static ACTIONS: [Action; 6] = [
+        static ACTIONS: [Action; 9] = [
             Action::Up,
             Action::Down,
             Action::PrevMenu,
             Action::NextMenu,
             Action::Mark,
             Action::Quit,
+            Action::AddTodo,
+            Action::RemoveTodo,
+            Action::EditTodo,
         ];
         ACTIONS.iter()
     }
@@ -212,6 +221,8 @@ pub struct Config<'a> {
     pub hide_menu_timeout: u16,
     pub selection_style: Selection,
     pub key_mapping: Vec<(Action, char)>,
+    // TODO: add cursor style -
+    // BlinkingBar/BlinkingBlock/BlinkingUnderline/SteadyBar/SteadyBlock/SteadyUnderline
 }
 
 impl<'a> Config<'a> {
@@ -254,8 +265,11 @@ impl<'a> Default for Config<'a> {
             (Action::Down, 'k'),
             (Action::PrevMenu, 'h'),
             (Action::NextMenu, 'l'),
-            (Action::Mark, 'e'),
+            (Action::Mark, 'f'),
             (Action::Quit, 'q'),
+            (Action::AddTodo, 'a'),
+            (Action::RemoveTodo, 'd'),
+            (Action::EditTodo, 'e'),
         ];
 
         Config {

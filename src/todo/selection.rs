@@ -48,39 +48,6 @@ impl Selection {
         // result.replace(WRAPPER, end_char)
     }
 
-    // TODO: delete the following after refactor
-    pub fn print_outline(string: &str, spacing: Option<&str>) {
-        print!(
-            "{bg}{fg}{item}{bg_clear}{fg_clear}{spacing}",
-            bg = termion::color::Bg(termion::color::White),
-            fg = termion::color::Fg(termion::color::Black),
-            item = string,
-            bg_clear = termion::color::Bg(termion::color::Reset),
-            fg_clear = termion::color::Fg(termion::color::Reset),
-            spacing = spacing.unwrap_or(DEFAULT_SPACING)
-        );
-    }
-
-    pub fn print_bold(string: &str, spacing: Option<&str>) {
-        print!(
-            "{bold}{item}{reset}{spacing}",
-            bold = termion::style::Bold,
-            item = string,
-            reset = termion::style::Reset,
-            spacing = spacing.unwrap_or(DEFAULT_SPACING)
-        );
-    }
-
-    pub fn print_strikethrough(string: &str, spacing: Option<&str>) {
-        print!(
-            "{strikethrough}{item}{reset}{spacing}",
-            strikethrough = termion::style::CrossedOut,
-            item = string,
-            reset = termion::style::Reset,
-            spacing = spacing.unwrap_or(DEFAULT_SPACING)
-        );
-    }
-
     pub fn print_styled(string: &str, style: PrintStyle) {
         let PrintStyle {
             selection,
@@ -94,9 +61,10 @@ impl Selection {
             format!(
                 "{first_char}{strikethrough}{rest_chars}{reset}{last_char}",
                 // Second bullet char is unicode, so it is 3-bit long, ending at index 4 inclusive
-                first_char = &string[..5],
+                // TODO: think whether strikethrough should stretch across delimiter or not
+                first_char = &string[..1],
                 strikethrough = termion::style::CrossedOut,
-                rest_chars = &string[5..last_index],
+                rest_chars = &string[1..last_index],
                 reset = termion::style::NoCrossedOut,
                 last_char = &string[last_index..],
             )
