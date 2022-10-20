@@ -4,32 +4,34 @@ pub mod menu;
 pub mod selection;
 
 use std::io::{stdin, stdout, Write};
+use std::path::Path;
 
+use crate::app::helper::{hide_cursor, prepare_print, show_cursor};
+use crate::app::list::List;
+use crate::app::menu::Menu;
 use crate::config::Action;
 use crate::config::Config;
-use crate::todo::helper::{hide_cursor, prepare_print, show_cursor};
-use crate::todo::list::List;
-use crate::todo::menu::Menu;
 
 use termion;
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
 
-pub struct Todo<'a> {
+pub struct App<'a> {
     menu: Menu<'a>,
     list: List<'a>,
     key_mapping: &'a Vec<(Action, char)>,
 }
 
-impl<'a> Todo<'a> {
-    pub fn init(config: &'a Config) -> Self {
+impl<'a> App<'a> {
+    // TODO: make path better
+    pub fn init(config: &'a Config, path: &'a Path) -> Self {
         // TODO: maybe there is a way to get rid of &config.key_mapping somewhow maybe just pass a
         // whole config or not
         let menu = Menu::init(&config.selection_style, &config.key_mapping);
-        let list = List::init(&config.selection_style, &config.key_mapping);
+        let list = List::init(&config.selection_style, &config.key_mapping, &path);
 
-        Todo {
+        App {
             menu,
             list,
             key_mapping: &config.key_mapping,

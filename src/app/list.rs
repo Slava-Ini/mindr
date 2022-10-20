@@ -1,14 +1,12 @@
 // TODO: refactor imports
-use crate::todo::helper::{finish_print, hide_cursor, move_cursor};
-use crate::todo::selection::PrintStyle;
-use crate::todo::selection::Selection;
-use crate::todo::Action;
+use crate::app::helper::{finish_print, hide_cursor, move_cursor};
+use crate::app::selection::PrintStyle;
+use crate::app::selection::Selection;
+use crate::app::Action;
 
-use std::env;
-use std::fs::File;
-use std::io;
-use std::io::BufRead;
-use std::path::{Path, PathBuf};
+use std::fs::{write, File};
+use std::io::{self, BufRead, Write};
+use std::path::Path;
 
 use core::str::FromStr;
 
@@ -33,10 +31,79 @@ const LIST_TOP_MARGIN: u16 = 2;
 // TODO: think about page scroll when many todos
 // TODO: think about line return if text doesn't fit or set maximum text length
 
+fn read_list<'a>(
+    path: &'a Path,
+    selection_style: &'a Selection,
+    key_mapping: &'a Vec<(Action, char)>,
+) -> List<'a> {
+    let lines = match read_lines(&path) {
+        Ok(lines) => lines,
+        Err(error) => {
+            panic!("Couldn't read todo.txt file: {error}");
+        }
+    };
+
+    let mut todo_list: Vec<TodoItem> = Vec::new();
+
+    for line in lines {
+        let line = match line {
+            Ok(line) => line,
+            Err(error) => {
+                panic!("todo.txt file seems to be corrupted: {error}. Try deleting the file and restarting mindr. NOTE: deleting the file will destroy user's todo list data");
+            }
+        };
+
+        let item_config = line.split(DELIMITER).collect::<Vec<&str>>();
+
+        if item_config.len() != 5 {
+            panic!("todo.txt file seems to be corrupted: App configuration doesn't match. Check that configuration matches 'id|DateTime|DateTime|Status|Description' pattern or delete the file and restart mindr. NOTE: deleting the file will destroy user's todo list data");
+        }
+
+        // TODO: do sth with repetetive messages
+        // TODO: id is probably not needed at all
+        // TODO: also date_modified is currently not used
+        let id = item_config[0].parse::<u16>().expect("Couldn't parse todo.txt id to u32, check that all ids are valid or delete the file and restart mindr. NOTE: deleting the file will destroy user's todo list data");
+        let date_created = item_config[1].parse::<DateTime<Utc>>().expect("Coldn't parse the date in todo.txt, check that all dates are valid or delete the file and restart mindr. NOTE: deleting the file will destroy user's todo list data");
+        let date_modified = item_config[2].parse::<DateTime<Utc>>().expect("Coldn't parse the date in todo.txt, check that all dates are valid or delete the file and restart mindr. NOTE: deleting the file will destroy user's todo list data");
+        let status = Status::from_str(&item_config[3]).unwrap_or_else(|err| {
+            eprintln!("Couldn't get todo item status: {err}. Setting to default status 'Todo'");
+            Status::Todo
+        });
+        let description = item_config[4].to_owned();
+
+        let todo_item = TodoItem {
+            id,
+            date_created,
+            date_modified,
+            status,
+            description,
+        };
+
+        todo_list.push(todo_item);
+    }
+
+    List {
+        todo_list,
+        key_mapping,
+        selection_style,
+        selected_index: 0,
+        path,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 enum Status {
     Todo,
     Done,
+}
+
+impl Status {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Status::Todo => "Todo",
+            Status::Done => "Done",
+        }
+    }
 }
 
 impl FromStr for Status {
@@ -67,23 +134,13 @@ impl TodoItem {
     }
 }
 
-// TODO: work on paths and where to store them
-fn get_list_path() -> PathBuf {
-    let user_name = env::var("USERNAME").expect("Couldn't get system user");
-
-    let path: PathBuf = ["/home", user_name.as_str(), ".config", "mindr", "todo.txt"]
-        .iter()
-        .collect();
-
-    path
-}
-
 #[derive(Debug, Clone)]
 pub struct List<'a> {
     todo_list: Vec<TodoItem>,
     key_mapping: &'a Vec<(Action, char)>,
     selection_style: &'a Selection,
     selected_index: u16,
+    path: &'a Path,
 }
 
 // TODO: think where to put this fn
@@ -96,62 +153,25 @@ where
 }
 
 impl<'a> List<'a> {
-    pub fn init(selection_style: &'a Selection, key_mapping: &'a Vec<(Action, char)>) -> Self {
-        let path = get_list_path();
-        // let dt = Utc::now().to_string();
-        // let dt_from_str = dt.parse::<DateTime<Utc>>().unwrap();
+    // TODO: somehow improve amount of args and path
+    pub fn init(
+        selection_style: &'a Selection,
+        key_mapping: &'a Vec<(Action, char)>,
+        path: &'a Path,
+    ) -> Self {
+        if !path.exists() {
+            File::create(path).expect("Couldn't create todo list storage file");
 
-        let lines = match read_lines(&path) {
-            Ok(lines) => lines,
-            Err(error) => {
-                panic!("Couldn't read todo.txt file: {error}");
-            }
-        };
-
-        let mut todo_list: Vec<TodoItem> = Vec::new();
-
-        for line in lines {
-            let line = match line {
-                Ok(line) => line,
-                Err(error) => {
-                    panic!("todo.txt file seems to be corrupted: {error}. Try deleting the file and restarting mindr. NOTE: deleting the file will destroy user's todo list data");
-                }
+            return Self {
+                key_mapping,
+                selection_style,
+                todo_list: Vec::new(),
+                selected_index: 0,
+                path,
             };
-
-            let item_config = line.split(DELIMITER).collect::<Vec<&str>>();
-
-            if item_config.len() != 5 {
-                panic!("todo.txt file seems to be corrupted: Todo configuration doesn't match. Check that configuration matches 'id|DateTime|DateTime|Status|Description' pattern or delete the file and restart mindr. NOTE: deleting the file will destroy user's todo list data");
-            }
-
-            // TODO: do sth with repetetive messages
-            // TODO: id is probably not needed at all
-            let id = item_config[0].parse::<u16>().expect("Couldn't parse todo.txt id to u32, check that all ids are valid or delete the file and restart mindr. NOTE: deleting the file will destroy user's todo list data");
-            let date_created = item_config[1].parse::<DateTime<Utc>>().expect("Coldn't parse the date in todo.txt, check that all dates are valid or delete the file and restart mindr. NOTE: deleting the file will destroy user's todo list data");
-            let date_modified = item_config[2].parse::<DateTime<Utc>>().expect("Coldn't parse the date in todo.txt, check that all dates are valid or delete the file and restart mindr. NOTE: deleting the file will destroy user's todo list data");
-            let status = Status::from_str(&item_config[3]).unwrap_or_else(|err| {
-                eprintln!("Couldn't get todo item status: {err}. Setting to default status 'Todo'");
-                Status::Todo
-            });
-            let description = item_config[4].to_owned();
-
-            let todo_item = TodoItem {
-                id,
-                date_created,
-                date_modified,
-                status,
-                description,
-            };
-
-            todo_list.push(todo_item);
         }
 
-        List {
-            todo_list,
-            key_mapping,
-            selection_style,
-            selected_index: 0,
-        }
+        read_list(&path, &selection_style, &key_mapping)
     }
 
     fn remove_selected_todo(&mut self) {
@@ -175,7 +195,31 @@ impl<'a> List<'a> {
         self.todo_list = list;
     }
 
-    fn write(&self) {}
+    // TODO: probably rename to save
+    fn write(&self) {
+        let contents = &self.todo_list;
+        let contents: Vec<String> = contents
+            .into_iter()
+            .map(
+                |TodoItem {
+                     id,
+                     date_created,
+                     date_modified,
+                     status,
+                     description,
+                 }| {
+                    format!(
+                        "{id}|{date_created}|{date_modified}|{status}|{description}",
+                        status = status.as_str()
+                    )
+                },
+            )
+            .collect();
+
+        write(self.path, contents.join("\n")).unwrap_or_else(|err| {
+            panic!("Couldn't save updated todo list: {err}");
+        });
+    }
 
     pub fn render(&self) {
         let mut cursor_y = 2;
@@ -205,7 +249,6 @@ impl<'a> List<'a> {
         }
 
         finish_print();
-        // TODO: also add initialization of `todo.txt` list in config!!
     }
 
     pub fn listen_keys(&mut self, key: &Key) {
@@ -250,6 +293,7 @@ impl<'a> List<'a> {
                 }
 
                 hide_cursor();
+                self.write();
             }
             Key::Char(ch)
                 if ch == &Action::get_action_char(self.key_mapping, Action::RemoveTodo) =>
@@ -274,8 +318,10 @@ impl<'a> List<'a> {
                     .collect();
 
                 self.todo_list = list;
+                self.write();
             }
             Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::EditTodo) => {
+                // TODO: add update of date modified
                 if self.todo_list.len() == 0 {
                     return;
                 }
@@ -303,6 +349,7 @@ impl<'a> List<'a> {
                 }
 
                 hide_cursor();
+                self.write();
             }
             _ => {}
         }

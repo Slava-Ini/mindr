@@ -1,9 +1,9 @@
-use crate::todo::selection::PrintStyle;
+use crate::app::selection::PrintStyle;
 use std::str::FromStr;
 
-use crate::todo::helper::prepare_print;
-use crate::todo::selection::Selection;
-use crate::todo::Action;
+use crate::app::helper::prepare_print;
+use crate::app::selection::Selection;
+use crate::app::Action;
 
 use termion;
 use termion::event::Key;

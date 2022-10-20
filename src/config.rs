@@ -1,7 +1,7 @@
 use configparser::ini;
 use std::str::FromStr;
 
-use crate::todo::selection::Selection;
+use crate::app::selection::Selection;
 
 use std::fs::{self, File};
 use std::path::Path;
@@ -150,12 +150,9 @@ fn write_ini(config: &Config, path: &Path) {
         ini_config.setstr("key_mapping", action.as_str(), Some(&key.to_string()));
     }
 
-    match ini_config.write(path) {
-        Err(error) => {
-            panic!("Couldn't save configuration: {error}");
-        }
-        _ => (),
-    };
+    ini_config.write(path).unwrap_or_else(|err| {
+            panic!("Couldn't save configuration: {err}");
+    })
 }
 
 // TODO: should probabaly put action in separate module
@@ -221,8 +218,6 @@ pub struct Config<'a> {
     pub hide_menu_timeout: u16,
     pub selection_style: Selection,
     pub key_mapping: Vec<(Action, char)>,
-    // TODO: add cursor style -
-    // BlinkingBar/BlinkingBlock/BlinkingUnderline/SteadyBar/SteadyBlock/SteadyUnderline
 }
 
 impl<'a> Config<'a> {
@@ -233,8 +228,9 @@ impl<'a> Config<'a> {
             fs::create_dir_all(prefix).expect("Couldn't create a directory");
             File::create(path).expect("Couldn't create configuration file");
 
-            let mut config = Config::default();
+            let mut config = Self::default();
 
+            // TODO: there is probably a better way to make it's path or not
             config.set_path(path);
             config.save();
 
@@ -261,8 +257,8 @@ impl<'a> Config<'a> {
 impl<'a> Default for Config<'a> {
     fn default() -> Self {
         let key_mapping = vec![
-            (Action::Up, 'j'),
-            (Action::Down, 'k'),
+            (Action::Up, 'k'),
+            (Action::Down, 'j'),
             (Action::PrevMenu, 'h'),
             (Action::NextMenu, 'l'),
             (Action::Mark, 'f'),
