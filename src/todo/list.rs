@@ -17,17 +17,16 @@ use chrono::{DateTime, Utc};
 use termion;
 use termion::event::Key;
 
-use linefeed::{Interface, Prompter, ReadResult};
-use rustyline::error::ReadlineError;
-use rustyline::{Editor, Result as RSResult};
+use rustyline::{Editor, Result as RLResult};
 
 use super::helper::{show_blinking_cursor, show_cursor};
 
 const DELIMITER: &'static str = "|";
 const WRAPPER: &'static str = " ";
-const LIST_MARK: &'static str = "•";
+const LIST_MARK: &'static str = "·";
+const LIST_MARK_SELECTED: &'static str = "•";
 const LIST_SPACING: &'static str = " ";
-const LIST_LEFT_MARGIN: u16 = 2;
+const LIST_LEFT_MARGIN: &'static str = "  ";
 const LIST_TOP_MARGIN: u16 = 2;
 
 // TODO: add emojis in the future
@@ -155,13 +154,34 @@ impl<'a> List<'a> {
         }
     }
 
+    fn remove_selected_todo(&mut self) {
+        if self.key_mapping.len() < 1 {
+            return;
+        }
+
+        let list: Vec<TodoItem> = self
+            .todo_list
+            .clone()
+            .into_iter()
+            .enumerate()
+            .filter(|(index, _)| *index as u16 != self.selected_index)
+            .map(|(_, item)| item)
+            .collect();
+
+        if self.selected_index > 0 && self.selected_index > list.len() as u16 - 1 {
+            self.selected_index -= 1;
+        }
+
+        self.todo_list = list;
+    }
+
     fn write(&self) {}
 
     pub fn render(&self) {
         let mut cursor_y = 2;
 
         for item in &self.todo_list {
-            move_cursor(LIST_LEFT_MARGIN, cursor_y);
+            move_cursor(LIST_LEFT_MARGIN.len() as u16, cursor_y);
 
             let index = &self.todo_list.iter().position(|todo| todo == item).unwrap();
             let selected_index = &(self.selected_index as usize);
@@ -204,20 +224,16 @@ impl<'a> List<'a> {
                 }
             }
             Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::AddTodo) => {
-                let x_offset = LIST_LEFT_MARGIN
-                    + DELIMITER.len() as u16
-                    + WRAPPER.len() as u16
-                    + LIST_SPACING.len() as u16;
+                let prompt = format!("{LIST_LEFT_MARGIN}{LIST_MARK_SELECTED}{WRAPPER}");
+                let x_offset = prompt.len() as u16;
                 let y_offset = self.todo_list.len() as u16 + LIST_TOP_MARGIN;
 
                 show_cursor();
                 move_cursor(x_offset, y_offset);
 
-                // TODO: remove all unwraps on the page
-                let interface = Interface::new("todo_add").unwrap();
+                let mut rl = Editor::<()>::new().unwrap();
 
-                // Probably change it
-                while let ReadResult::Input(line) = interface.read_line().unwrap() {
+                while let RLResult::Ok(line) = rl.readline(&prompt) {
                     let todo_item = TodoItem {
                         id: self.todo_list.len() as u16 + 1,
                         date_created: Utc::now(),
@@ -230,31 +246,15 @@ impl<'a> List<'a> {
                         self.todo_list.push(todo_item);
                     }
 
-                    hide_cursor();
                     break;
                 }
+
+                hide_cursor();
             }
             Key::Char(ch)
                 if ch == &Action::get_action_char(self.key_mapping, Action::RemoveTodo) =>
             {
-                if self.key_mapping.len() < 1 {
-                    return;
-                }
-
-                let list: Vec<TodoItem> = self
-                    .todo_list
-                    .clone()
-                    .into_iter()
-                    .enumerate()
-                    .filter(|(index, _)| *index as u16 != self.selected_index)
-                    .map(|(_, item)| item)
-                    .collect();
-
-                if self.selected_index > 0 && self.selected_index > list.len() as u16 - 1 {
-                    self.selected_index -= 1;
-                }
-
-                self.todo_list = list;
+                self.remove_selected_todo();
             }
             Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::Mark) => {
                 let list: Vec<TodoItem> = self
@@ -276,43 +276,31 @@ impl<'a> List<'a> {
                 self.todo_list = list;
             }
             Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::EditTodo) => {
-                // TODO: start off here
-                let left_thing = format!("  {LIST_MARK}{WRAPPER}{LIST_SPACING}");
-                // let x_offset = LIST_LEFT_MARGIN
-                //     + DELIMITER.len() as u16
-                //     + WRAPPER.len() as u16
-                //     + LIST_SPACING.len() as u16;
-                let x_offset = left_thing.len() as u16;
+                if self.todo_list.len() == 0 {
+                    return;
+                }
+
+                let prompt = format!("{LIST_LEFT_MARGIN}{LIST_MARK_SELECTED}{WRAPPER}");
+                let x_offset = prompt.len() as u16;
                 let y_offset = self.selected_index as u16 + LIST_TOP_MARGIN;
 
                 show_blinking_cursor();
                 move_cursor(x_offset, y_offset);
 
-                // let interface = Interface::new("todo_edit").unwrap();
                 let description = &self.todo_list[self.selected_index as usize].description;
-                let description = format!(" {description} ");
 
                 let mut rl = Editor::<()>::new().unwrap();
 
-                while let RSResult::Ok(line) = rl.readline_with_initial(&left_thing, (&description, "")) {
-                    self.todo_list[self.selected_index as usize].description =
-                        line.trim().to_owned();
+                while let RLResult::Ok(line) = rl.readline_with_initial(&prompt, (&description, ""))
+                {
+                    if line.trim().len() > 0 {
+                        self.todo_list[self.selected_index as usize].description =
+                            line.trim().to_owned();
+                    } else {
+                        self.remove_selected_todo();
+                    }
                     break;
                 }
-                // interface.set_buffer(&description).unwrap();
-
-                // while let ReadResult::Input(line) = interface.read_line().unwrap() {
-                //     match line {
-                //         _ => self.render(),
-                //     }
-                //     self.todo_list[self.selected_index as usize].description =
-                //         line.trim().to_owned();
-                //     break;
-                // }
-                
-                
-                
-                // TODO: add a check if result message is empty
 
                 hide_cursor();
             }
