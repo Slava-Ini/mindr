@@ -1,5 +1,6 @@
 use configparser::ini;
 use std::str::FromStr;
+use termion::event::Key;
 
 use crate::app::selection::Selection;
 
@@ -151,7 +152,7 @@ fn write_ini(config: &Config, path: &Path) {
     }
 
     ini_config.write(path).unwrap_or_else(|err| {
-            panic!("Couldn't save configuration: {err}");
+        panic!("Couldn't save configuration: {err}");
     })
 }
 
@@ -184,6 +185,20 @@ impl Action {
         }
     }
 
+    pub fn as_char(&self, key_mapping: &Vec<(Self, char)>) -> char {
+        match self {
+            Action::Up => Action::get_action_char(key_mapping, Action::Up),
+            Action::Down => Action::get_action_char(key_mapping, Action::Down),
+            Action::PrevMenu => Action::get_action_char(key_mapping, Action::PrevMenu),
+            Action::NextMenu => Action::get_action_char(key_mapping, Action::NextMenu),
+            Action::Mark => Action::get_action_char(key_mapping, Action::Mark),
+            Action::Quit => Action::get_action_char(key_mapping, Action::Quit),
+            Action::AddTodo => Action::get_action_char(key_mapping, Action::AddTodo),
+            Action::RemoveTodo => Action::get_action_char(key_mapping, Action::RemoveTodo),
+            Action::EditTodo => Action::get_action_char(key_mapping, Action::EditTodo),
+        }
+    }
+
     fn iterate() -> Iter<'static, Action> {
         static ACTIONS: [Action; 9] = [
             Action::Up,
@@ -199,12 +214,14 @@ impl Action {
         ACTIONS.iter()
     }
 
+    // TODO: figure out or rename
     pub fn get_action_char(key_mapping: &Vec<(Self, char)>, action: Action) -> char {
         let (_, key) = key_mapping
             .iter()
             .find(|(map_action, _)| *map_action == action)
             .expect("No such action exist");
 
+        // Key::Char(*key)
         *key
     }
 }

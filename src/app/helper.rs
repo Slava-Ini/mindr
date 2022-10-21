@@ -6,6 +6,14 @@ pub fn prepare_print() {
     print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
 }
 
+pub fn reset_cursor() {
+    print!("{}", termion::cursor::Goto(1, 1));
+}
+
+pub fn clear_screen() {
+    print!("{}", termion::clear::All);
+}
+
 pub fn finish_print() {
     println!("");
 }
@@ -14,13 +22,8 @@ pub fn hide_cursor() {
     print!("{}", termion::cursor::Hide);
 }
 
-// TODO: remove or merge the two functions, or at least rename
 pub fn show_cursor() {
     print!("{}", termion::cursor::Show);
-}
-
-pub fn show_blinking_cursor() {
-    print!("{}{}", termion::cursor::BlinkingBar, termion::cursor::Show);
 }
 
 pub fn move_cursor(x: u16, y: u16) {

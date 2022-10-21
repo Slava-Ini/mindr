@@ -1,3 +1,4 @@
+use crate::app::helper::clear_screen;
 use crate::app::selection::PrintStyle;
 use std::str::FromStr;
 
@@ -7,6 +8,8 @@ use crate::app::Action;
 
 use termion;
 use termion::event::Key;
+
+use super::helper::reset_cursor;
 
 const MENU_SPACING: &'static str = "   ";
 const WRAPPER: &'static str = " ";
@@ -50,7 +53,7 @@ impl FromStr for MenuItem {
 #[derive(Clone)]
 pub struct Menu<'a> {
     menu: [MenuItem; 4],
-    selected_menu: MenuItem,
+    pub selected_menu: MenuItem,
     selection_style: &'a Selection,
     key_mapping: &'a Vec<(Action, char)>,
 }
@@ -107,7 +110,7 @@ impl<'a> Menu<'a> {
     }
 
     pub fn render(&self) {
-        prepare_print();
+        reset_cursor();
 
         let menu = self.menu.clone();
 
@@ -134,13 +137,13 @@ impl<'a> Menu<'a> {
                 let chosen_menu = self.get_prev_menu();
 
                 self.set_selected_menu(chosen_menu);
-                self.render();
+                clear_screen();
             }
             Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::NextMenu) => {
                 let chosen_menu = self.get_next_menu();
 
                 self.set_selected_menu(chosen_menu);
-                self.render();
+                clear_screen();
             }
             _ => {}
         }
