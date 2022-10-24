@@ -34,12 +34,10 @@ fn read_todo<'a>(
     selection_style: &'a Selection,
     key_mapping: &'a Vec<(Action, char)>,
 ) -> Todo<'a> {
-    let lines = match read_lines(&path) {
-        Ok(lines) => lines,
-        Err(error) => {
+    let file = File::open(path).unwrap_or_else(|error| {
             panic!("Couldn't read todo.txt file: {error}");
-        }
-    };
+    });
+    let lines = io::BufReader::new(file).lines();
 
     let mut todo_list: Vec<TodoItem> = Vec::new();
 
@@ -140,15 +138,6 @@ pub struct Todo<'a> {
     selection_style: &'a Selection,
     selected_index: u16,
     path: &'a Path,
-}
-
-// TODO: think where to put this fn
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where
-    P: AsRef<Path>,
-{
-    let file = File::open(filename)?;
-    Ok(io::BufReader::new(file).lines())
 }
 
 impl<'a> Todo<'a> {
@@ -253,8 +242,7 @@ impl<'a> Todo<'a> {
 
     pub fn listen_keys(&mut self, key: &Key) {
         match key {
-            // TODO: maybe there is a way to check keys simplier
-            // TODO: Maybe make a macro 
+            // TODO: Maybe make a macro (learn more about macros)
             // https://stackoverflow.com/questions/63876773/how-complicated-can-a-match-pattern-be-trying-to-convert-macro-from-termion-to
             Key::Char(ch) if ch == &Action::Up.as_char(self.key_mapping) => {
                 if self.selected_index != 0 {

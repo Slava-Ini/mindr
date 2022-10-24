@@ -1,6 +1,5 @@
 use configparser::ini;
 use std::str::FromStr;
-use termion::event::Key;
 
 use crate::app::selection::Selection;
 
