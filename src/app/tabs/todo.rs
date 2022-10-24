@@ -29,13 +29,31 @@ const LIST_TOP_MARGIN: u16 = 2;
 // TODO: think about page scroll when many todos
 // TODO: think about line return if text doesn't fit or set maximum text length
 
+fn generate_id(todo_list: &Vec<TodoItem>) -> u16 {
+    let mut ids: Vec<u16> = Vec::new();
+
+    for item in todo_list {
+        ids.push(item.id);
+    }
+
+    ids.sort();
+
+    for i in u16::MIN..u16::MAX {
+        if !ids.contains(&i) {
+            return i;
+        }
+    }
+
+    panic!("Too many todo items");
+}
+
 fn read_todo<'a>(
     path: &'a Path,
     selection_style: &'a Selection,
     key_mapping: &'a Vec<(Action, char)>,
 ) -> Todo<'a> {
     let file = File::open(path).unwrap_or_else(|error| {
-            panic!("Couldn't read todo.txt file: {error}");
+        panic!("Couldn't read todo.txt file: {error}");
     });
     let lines = io::BufReader::new(file).lines();
 
@@ -58,9 +76,18 @@ fn read_todo<'a>(
         // TODO: do sth with repetetive messages
         // TODO: id is probably not needed at all
         // TODO: also date_modified is currently not used
+        let date_modified = item_config[2].parse::<DateTime<Utc>>().expect("Coldn't parse the date in todo.txt, check that all dates are valid or delete the file and restart mindr. NOTE: deleting the file will destroy user's todo list data");
+
+        // TODO: first fix write
+        // let today = Utc::now().date();
+        // let modified = date_modified.date();
+
+        // if today > modified {
+        //     continue;
+        // }
+
         let id = item_config[0].parse::<u16>().expect("Couldn't parse todo.txt id to u32, check that all ids are valid or delete the file and restart mindr. NOTE: deleting the file will destroy user's todo list data");
         let date_created = item_config[1].parse::<DateTime<Utc>>().expect("Coldn't parse the date in todo.txt, check that all dates are valid or delete the file and restart mindr. NOTE: deleting the file will destroy user's todo list data");
-        let date_modified = item_config[2].parse::<DateTime<Utc>>().expect("Coldn't parse the date in todo.txt, check that all dates are valid or delete the file and restart mindr. NOTE: deleting the file will destroy user's todo list data");
         let status = Status::from_str(&item_config[3]).unwrap_or_else(|err| {
             eprintln!("Couldn't get todo item status: {err}. Setting to default status 'Todo'");
             Status::Todo
@@ -185,6 +212,7 @@ impl<'a> Todo<'a> {
 
     // TODO: probably rename to save
     fn write(&self) {
+        // TODO: implement writing on lines
         let contents = &self.todo_list;
         let contents: Vec<String> = contents
             .into_iter()
@@ -268,7 +296,7 @@ impl<'a> Todo<'a> {
 
                 while let RLResult::Ok(line) = rl.readline(&prompt) {
                     let todo_item = TodoItem {
-                        id: self.todo_list.len() as u16 + 1,
+                        id: generate_id(&self.todo_list),
                         date_created: Utc::now(),
                         date_modified: Utc::now(),
                         status: Status::Todo,
@@ -345,5 +373,76 @@ impl<'a> Todo<'a> {
             }
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_intermediate_id() {
+        let todo_list = vec![
+            TodoItem {
+                id: 0,
+                date_created: Utc::now(),
+                date_modified: Utc::now(),
+                status: Status::Todo,
+                description: String::from("Zero"),
+            },
+            TodoItem {
+                id: 2,
+                date_created: Utc::now(),
+                date_modified: Utc::now(),
+                status: Status::Todo,
+                description: String::from("Two"),
+            },
+        ];
+
+        assert_eq!(generate_id(&todo_list), 1);
+    }
+
+    #[test]
+    fn test_generate_starting_id() {
+        let todo_list = vec![
+            TodoItem {
+                id: 1,
+                date_created: Utc::now(),
+                date_modified: Utc::now(),
+                status: Status::Todo,
+                description: String::from("One"),
+            },
+            TodoItem {
+                id: 2,
+                date_created: Utc::now(),
+                date_modified: Utc::now(),
+                status: Status::Todo,
+                description: String::from("Two"),
+            },
+        ];
+
+        assert_eq!(generate_id(&todo_list), 0);
+    }
+
+    #[test]
+    fn test_generate_ending_id() {
+        let todo_list = vec![
+            TodoItem {
+                id: 0,
+                date_created: Utc::now(),
+                date_modified: Utc::now(),
+                status: Status::Todo,
+                description: String::from("Zero"),
+            },
+            TodoItem {
+                id: 1,
+                date_created: Utc::now(),
+                date_modified: Utc::now(),
+                status: Status::Todo,
+                description: String::from("One"),
+            },
+        ];
+
+        assert_eq!(generate_id(&todo_list), 2);
     }
 }
