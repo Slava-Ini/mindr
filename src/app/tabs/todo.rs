@@ -1,5 +1,5 @@
 // TODO: refactor imports
-use crate::app::helper::{clear_screen, finish_print, hide_cursor, move_cursor, show_cursor};
+use crate::app::helper::{Cursor, Print, Screen};
 use crate::app::selection::PrintStyle;
 use crate::app::selection::Selection;
 use crate::app::Action;
@@ -242,7 +242,7 @@ impl<'a> Todo<'a> {
         let mut cursor_y = 2;
 
         for item in &self.todo_list {
-            move_cursor(LIST_LEFT_MARGIN.len() as u16, cursor_y);
+            Cursor::place(LIST_LEFT_MARGIN.len() as u16, cursor_y);
 
             let index = &self.todo_list.iter().position(|todo| todo == item).unwrap();
             let selected_index = &(self.selected_index as usize);
@@ -265,7 +265,7 @@ impl<'a> Todo<'a> {
             cursor_y += 1;
         }
 
-        finish_print();
+        Print::finsih();
     }
 
     pub fn listen_keys(&mut self, key: &Key) {
@@ -289,36 +289,38 @@ impl<'a> Todo<'a> {
                 let x_offset = prompt.len() as u16;
                 let y_offset = self.todo_list.len() as u16 + LIST_TOP_MARGIN;
 
-                show_cursor();
-                move_cursor(x_offset, y_offset);
+                Cursor::show();
+                Cursor::place(x_offset, y_offset);
 
                 let mut rl = Editor::<()>::new().unwrap();
 
                 while let RLResult::Ok(line) = rl.readline(&prompt) {
-                    let todo_item = TodoItem {
-                        id: generate_id(&self.todo_list),
-                        date_created: Utc::now(),
-                        date_modified: Utc::now(),
-                        status: Status::Todo,
-                        description: line.trim().to_owned(),
-                    };
+                    if line.len() > 0 {
+                        let todo_item = TodoItem {
+                            id: generate_id(&self.todo_list),
+                            date_created: Utc::now(),
+                            date_modified: Utc::now(),
+                            status: Status::Todo,
+                            description: line.trim().to_owned(),
+                        };
 
-                    if todo_item.description.len() > 0 {
                         self.todo_list.push(todo_item);
+                        self.write();
                     }
 
                     break;
                 }
 
-                hide_cursor();
-                self.write();
+                Cursor::hide();
+                Screen::clear();
             }
             Key::Char(ch)
                 if ch == &Action::get_action_char(self.key_mapping, Action::RemoveTodo) =>
             {
                 self.remove_selected_todo();
                 self.write();
-                clear_screen();
+
+                Screen::clear();
             }
             Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::Mark) => {
                 let list: Vec<TodoItem> = self
@@ -350,8 +352,8 @@ impl<'a> Todo<'a> {
                 let x_offset = prompt.len() as u16;
                 let y_offset = self.selected_index as u16 + LIST_TOP_MARGIN;
 
-                show_cursor();
-                move_cursor(x_offset, y_offset);
+                Cursor::show();
+                Cursor::place(x_offset, y_offset);
 
                 let description = &self.todo_list[self.selected_index as usize].description;
 
@@ -368,7 +370,7 @@ impl<'a> Todo<'a> {
                     break;
                 }
 
-                hide_cursor();
+                Cursor::hide();
                 self.write();
             }
             _ => {}

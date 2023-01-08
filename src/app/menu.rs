@@ -1,15 +1,13 @@
-use crate::app::helper::clear_screen;
+use crate::app::helper::{Cursor, Screen};
 use crate::app::selection::PrintStyle;
 use std::str::FromStr;
 
-use crate::app::helper::prepare_print;
 use crate::app::selection::Selection;
 use crate::app::Action;
 
 use termion;
 use termion::event::Key;
 
-use super::helper::reset_cursor;
 
 const MENU_SPACING: &'static str = "   ";
 const WRAPPER: &'static str = " ";
@@ -110,7 +108,7 @@ impl<'a> Menu<'a> {
     }
 
     pub fn render(&self) {
-        reset_cursor();
+        Cursor::reset();
 
         let menu = self.menu.clone();
 
@@ -137,13 +135,13 @@ impl<'a> Menu<'a> {
                 let chosen_menu = self.get_prev_menu();
 
                 self.set_selected_menu(chosen_menu);
-                clear_screen();
+                Screen::clear();
             }
             Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::NextMenu) => {
                 let chosen_menu = self.get_next_menu();
 
                 self.set_selected_menu(chosen_menu);
-                clear_screen();
+                Screen::clear();
             }
             _ => {}
         }

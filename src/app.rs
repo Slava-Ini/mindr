@@ -6,7 +6,7 @@ pub mod tabs;
 use std::io::{stdin, stdout, Write};
 use std::path::Path;
 
-use crate::app::helper::{hide_cursor, prepare_print, show_cursor};
+use crate::app::helper::{Cursor, Print};
 use crate::app::menu::{Menu, MenuItem};
 use crate::app::tabs::done::Done;
 use crate::app::tabs::todo::Todo;
@@ -43,8 +43,8 @@ impl<'a> App<'a> {
     }
 
     pub fn run(&mut self) {
-        hide_cursor();
-        prepare_print();
+        Cursor::hide();
+        Print::prepare();
 
         let stdin = stdin();
         let mut screen = termion::screen::AlternateScreen::from(stdout().into_raw_mode().unwrap());
@@ -81,6 +81,6 @@ impl<'a> App<'a> {
             screen.flush().unwrap();
         }
 
-        show_cursor();
+        Cursor::show();
     }
 }

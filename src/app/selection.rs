@@ -1,6 +1,6 @@
 use core::str::FromStr;
 
-use super::helper::print_item;
+use crate::app::helper::Print;
 
 const WRAPPER: &'static str = " ";
 const DEFAULT_SPACING: &'static str = " ";
@@ -94,19 +94,17 @@ impl Selection {
                 );
             }
             Some(Selection::Brackets) => {
-                let text =
+                let text = Selection::get_selected_str(&text, &Selection::Brackets);
 
-                    Selection::get_selected_str(&text, &Selection::Brackets);
-                print_item(&text, spacing.unwrap_or(DEFAULT_SPACING));
+                Print::item(&text, spacing.unwrap_or(DEFAULT_SPACING));
             }
             Some(Selection::Tilde) => {
-                let text =
-                    Selection::get_selected_str(&text, &Selection::Tilde);
+                let text = Selection::get_selected_str(&text, &Selection::Tilde);
 
-                print_item(&text, spacing.unwrap_or(DEFAULT_SPACING));
+                Print::item(&text, spacing.unwrap_or(DEFAULT_SPACING));
             }
             None => {
-                print_item(&text, spacing.unwrap_or(DEFAULT_SPACING));
+                Print::item(&text, spacing.unwrap_or(DEFAULT_SPACING));
             }
         }
     }
@@ -121,11 +119,7 @@ impl FromStr for Selection {
             "tilde" => Ok(Selection::Tilde),
             "outline" => Ok(Selection::Outline),
             "bold" => Ok(Selection::Bold),
-            _ => {
-                return Err(
-                    "No such selection style available, try using 'brackets/tilde/outline/bold'",
-                )
-            }
+            _ => Err("No such selection style available, try using 'brackets/tilde/outline/bold'"),
         }
     }
 }

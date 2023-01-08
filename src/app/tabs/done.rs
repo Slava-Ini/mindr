@@ -1,4 +1,4 @@
-use crate::app::helper::{finish_print, move_cursor};
+use crate::app::helper::{Print, Cursor};
 
 use super::todo::{Status, TodoItem};
 
@@ -25,12 +25,13 @@ impl Done {
     }
 
     pub fn render(&self) {
-        move_cursor(5, 2);
+        Cursor::place(5, 2);
+
         for item in &self.done_list {
             println!("{}", item.description);
         }
 
-        finish_print();
+        Print::finsih();
     }
 }
 

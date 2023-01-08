@@ -1,31 +1,43 @@
-pub fn print_item(string: &str, spacing: &str) {
-    print!("{item}{spacing}", item = string, spacing = spacing);
+pub struct Print;
+
+impl Print {
+    pub fn item(string: &str, spacing: &str) {
+        print!("{item}{spacing}", item = string, spacing = spacing);
+    }
+
+    pub fn prepare() {
+        print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
+    }
+
+    pub fn finsih() {
+        println!("");
+    }
 }
 
-pub fn prepare_print() {
-    print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
+pub struct Cursor;
+
+impl Cursor {
+    pub fn hide() {
+        print!("{}", termion::cursor::Hide);
+    }
+
+    pub fn show() {
+        print!("{}", termion::cursor::Show);
+    }
+
+    pub fn place(x: u16, y: u16) {
+        println!("{}", termion::cursor::Goto(x, y));
+    }
+
+    pub fn reset() {
+        print!("{}", termion::cursor::Goto(1, 1));
+    }
 }
 
-pub fn reset_cursor() {
-    print!("{}", termion::cursor::Goto(1, 1));
-}
+pub struct Screen;
 
-pub fn clear_screen() {
-    print!("{}", termion::clear::All);
-}
-
-pub fn finish_print() {
-    println!("");
-}
-
-pub fn hide_cursor() {
-    print!("{}", termion::cursor::Hide);
-}
-
-pub fn show_cursor() {
-    print!("{}", termion::cursor::Show);
-}
-
-pub fn move_cursor(x: u16, y: u16) {
-    println!("{}", termion::cursor::Goto(x, y));
+impl Screen {
+    pub fn clear() {
+        print!("{}", termion::clear::All);
+    }
 }
