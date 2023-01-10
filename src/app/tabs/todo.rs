@@ -27,7 +27,6 @@ const LIST_TOP_MARGIN: u16 = 2;
 
 // TODO: add emojis in the future
 // TODO: think about page scroll when many todos
-// TODO: think about line return if text doesn't fit or set maximum text length
 
 fn generate_id(todo_list: &Vec<TodoItem>) -> u16 {
     let mut ids: Vec<u16> = Vec::new();
@@ -260,9 +259,12 @@ impl<'a> Todo<'a> {
 
             let text = TodoItem::format_description(&item.description);
 
+            let (x_size, _) = Screen::get_size();
+            let y_offset = ( text.len() as f32 ) / ( x_size as f32 ) ;
+
             Selection::print_styled(text.as_str(), print_style);
 
-            cursor_y += 1;
+            cursor_y += y_offset.ceil() as u16;
         }
 
         Print::finsih();

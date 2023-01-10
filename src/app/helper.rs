@@ -40,4 +40,8 @@ impl Screen {
     pub fn clear() {
         print!("{}", termion::clear::All);
     }
+
+    pub fn get_size() -> (u16, u16) {
+        termion::terminal_size().expect("Couldn't get the terminal window size")
+    }
 }

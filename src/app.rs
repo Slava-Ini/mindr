@@ -26,7 +26,6 @@ pub struct App<'a> {
 }
 
 impl<'a> App<'a> {
-    // TODO: make path better
     pub fn init(config: &'a Config, path: &'a Path) -> Self {
         // TODO: maybe there is a way to get rid of &config.key_mapping somewhow maybe just pass a
         // whole config or not
