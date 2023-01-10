@@ -4,38 +4,38 @@ use std::path::PathBuf;
 use mindr::app::App;
 use mindr::config::Config;
 
-// Maybe it should be inside of config and app
-fn get_config_path() -> PathBuf {
-    let user_name = env::var("USERNAME").expect("Couldn't get system user");
-
-    let path: PathBuf = [
-        "/home",
-        user_name.as_str(),
-        ".config",
-        "mindr",
-        "mindr.conf",
-    ]
-    .iter()
-    .collect();
-
-    path
+struct Path {
+    base_path: [String; 4],
 }
 
-// TODO: figure out duplication
-fn get_app_path() -> PathBuf {
-    let user_name = env::var("USERNAME").expect("Couldn't get system user");
+impl Path {
+    fn new() -> Self {
+        let user_name = env::var("USERNAME").expect("Couldn't get system user");
+        let base_path: [String; 4] = [
+            String::from("/home"),
+            user_name,
+            String::from(".config"),
+            String::from("mindr"),
+        ];
 
-    let path: PathBuf = ["/home", user_name.as_str(), ".config", "mindr", "todo.txt"]
-        .iter()
-        .collect();
+        Path { base_path }
+    }
 
-    path
+    fn get(&self) -> [PathBuf; 2] {
+        let mut config_path = self.base_path.iter().collect::<PathBuf>();
+        let mut app_path = self.base_path.iter().collect::<PathBuf>();
+
+        config_path.push("mindr.conf");
+        app_path.push("todo.txt");
+
+        [config_path, app_path]
+    }
 }
 
 // TODO: think if it's good to add other crate (not mindr) kind of like namespace for config
 fn main() {
-    let config_path = get_config_path();
-    let app_path = get_app_path();
+    let path = Path::new();
+    let [config_path, app_path] = path.get();
 
     let config = Config::init(&config_path);
     let mut app = App::init(&config, &app_path);
