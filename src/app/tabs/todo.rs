@@ -155,6 +155,13 @@ impl TodoItem {
     fn format_description(description: &str) -> String {
         format!("{WRAPPER}{LIST_MARK}{LIST_SPACING}{description}{WRAPPER}")
     }
+
+    fn get_line_height(text: &str) -> u16 {
+        let (x_size, _) = Screen::get_size();
+        let y_offset = (text.len() as f32) / (x_size as f32);
+
+        y_offset.ceil() as u16
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -258,13 +265,11 @@ impl<'a> Todo<'a> {
             };
 
             let text = TodoItem::format_description(&item.description);
+            let y_offset = TodoItem::get_line_height(&text);
 
-            let (x_size, _) = Screen::get_size();
-            let y_offset = ( text.len() as f32 ) / ( x_size as f32 ) ;
+            cursor_y += y_offset;
 
             Selection::print_styled(text.as_str(), print_style);
-
-            cursor_y += y_offset.ceil() as u16;
         }
 
         Print::finsih();
@@ -289,7 +294,9 @@ impl<'a> Todo<'a> {
             Key::Char(ch) if ch == &Action::get_action_char(self.key_mapping, Action::AddTodo) => {
                 let prompt = format!("{LIST_LEFT_MARGIN}{LIST_MARK_SELECTED}{WRAPPER}");
                 let x_offset = prompt.len() as u16;
-                let y_offset = self.todo_list.len() as u16 + LIST_TOP_MARGIN;
+                // --- Note ---
+                // We get offset to the last todo item and put cursor under it (+ 1)
+                let y_offset = self.get_y_offset(self.todo_list.last().unwrap().id) + 1;
 
                 Cursor::show();
                 Cursor::place(x_offset, y_offset);
@@ -350,14 +357,16 @@ impl<'a> Todo<'a> {
                     return;
                 }
 
+                let selected_todo = &self.todo_list[self.selected_index as usize];
+
                 let prompt = format!("{LIST_LEFT_MARGIN}{LIST_MARK_SELECTED}{WRAPPER}");
                 let x_offset = prompt.len() as u16;
-                let y_offset = self.selected_index as u16 + LIST_TOP_MARGIN;
+                let y_offset = self.get_y_offset(selected_todo.id);
 
                 Cursor::show();
                 Cursor::place(x_offset, y_offset);
 
-                let description = &self.todo_list[self.selected_index as usize].description;
+                let description = &selected_todo.description;
 
                 let mut rl = Editor::<()>::new().unwrap();
 
@@ -377,6 +386,23 @@ impl<'a> Todo<'a> {
             }
             _ => {}
         }
+    }
+
+    fn get_y_offset(&self, to_element_id: u16) -> u16 {
+        let mut offset: u16 = 0;
+
+        self.todo_list.iter().any(|todo_item| {
+            let text = TodoItem::format_description(&todo_item.description);
+            let is_match = todo_item.id == to_element_id;
+
+            if !is_match {
+                offset += TodoItem::get_line_height(&text);
+            }
+
+            is_match
+        });
+
+        offset + LIST_TOP_MARGIN
     }
 }
 
