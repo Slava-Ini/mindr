@@ -2,8 +2,8 @@ use mindr::app::selection::Selection;
 use mindr::config::Config;
 use serial_test::serial;
 
-use std::path::PathBuf;
 use std::{env, fs};
+use std::path::PathBuf;
 
 fn get_config_path() -> PathBuf {
     // TODO: improve error handling
