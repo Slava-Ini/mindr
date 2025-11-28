@@ -10,7 +10,7 @@ struct Path {
 
 impl Path {
     fn new() -> Self {
-        let user_name = env::var("USERNAME").expect("Couldn't get system user");
+        let user_name = env::var("USERNAME").or_else(|_| env::var("USER")).expect("Couldn't get system user");
         let base_path: [String; 4] = [
             String::from("/home"),
             user_name,

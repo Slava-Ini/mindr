@@ -7,7 +7,9 @@ use std::path::PathBuf;
 
 fn get_config_path() -> PathBuf {
     // TODO: improve error handling
-    let user_name = env::var("USERNAME").expect("Couldn't get system user");
+    let user_name = env::var("USERNAME")
+        .or_else(|_| env::var("USER"))
+        .expect("Couldn't get system user");
 
     let path: PathBuf = [
         "/home",
